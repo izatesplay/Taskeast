@@ -35,6 +35,8 @@ export interface Task {
   notes: Note[];
   createdAt: string;
   chatMessages?: ChatMessage[]; // Real-time chat messages
+  creatorId?: string;
+  creatorName?: string;
 }
 
 export interface ChatMessage {

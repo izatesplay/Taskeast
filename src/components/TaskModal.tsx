@@ -176,46 +176,6 @@ export default function TaskModal({
 
     setChatText('');
     setAttachedFile(null);
-
-    // Dynamic subscription simulated reply triggers after brief interval
-    const otherUsers = mockUsers.filter(u => u.id !== currentUser.id);
-    const responder = otherUsers[Math.floor(Math.random() * otherUsers.length)];
-
-    setTimeout(() => {
-      setIsTyping(true);
-      setTypingUser(responder.name);
-    }, 1500);
-
-    setTimeout(() => {
-      const simulatedReplies = [
-        "درود همكار گرامی، اطلاعات دریافتی و جزییات فایل ضمیمه را به دقت بررسی كردم. سریعاً هماهنگی‌های لازم با پیگیری فنی صورت می‌گیرد.",
-        "سلام. موضوع ثبت شد. هم‌اکنون با مشتری تماس می‌گیریم تا پرونده ترافیکی صف انتظار را برای توزیع به اپراتورها بررسی کنیم.",
-        "خسته نباشید. هماهنگی‌های لازم با سوپروایزر ثبت شد و تسک در اولویت اقدام شیفت قرار گرفت. تشکر از به‌روزرسانی کار بلیت.",
-        "گزارش شیفت تایید گردید. لطفا نتایج نهایی پیگیری را بعد از اتمام تماس در برد کانبان ثبت نهایی فرمایید."
-      ];
-      const selectedReply = simulatedReplies[Math.floor(Math.random() * simulatedReplies.length)];
-
-      const simulatedMsgId = 'msg_sim_' + Date.now();
-      const simulatedMessage: ChatMessage = {
-        id: simulatedMsgId,
-        taskId: taskToEdit.id,
-        senderId: responder.id,
-        senderName: responder.name,
-        messageText: selectedReply,
-        timestamp: new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
-      };
-
-      setIsTyping(false);
-      
-      const finalMessages = [...updatedMessages, simulatedMessage];
-      setMessages(finalMessages);
-
-      onSubmit({
-        ...taskToEdit,
-        chatMessages: finalMessages
-      });
-
-    }, 3800);
   };
 
   return (

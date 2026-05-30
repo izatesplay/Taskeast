@@ -320,6 +320,92 @@ export default function App() {
     return () => clearTimeout(debounceTimer);
   }, [tasks, users, notifications, mysqlStatus, mysqlEnabled, mysqlApiUrl, hasStartedInitialLoad]);
 
+  // 1. Live Sync Engine for Local Multi-Tab Collaboration (Standard HTML5 storage listener)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'callcenter_tasks' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (JSON.stringify(parsed) !== JSON.stringify(tasks)) {
+            setTasks(parsed);
+          }
+        } catch (err) {
+          console.warn("Storage Sync: Couldn't parse tasks", err);
+        }
+      }
+      if (e.key === 'callcenter_notifications' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (JSON.stringify(parsed) !== JSON.stringify(notifications)) {
+            setNotifications(parsed);
+          }
+        } catch (err) {
+          console.warn("Storage Sync: Couldn't parse notifications", err);
+        }
+      }
+      if (e.key === 'callcenter_users' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (JSON.stringify(parsed) !== JSON.stringify(users)) {
+            setUsers(parsed);
+          }
+        } catch (err) {
+          console.warn("Storage Sync: Couldn't parse users", err);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [tasks, notifications, users]);
+
+  // 2. Background Polling Engine for cPanel / phpMyAdmin Live Database Synchronization
+  useEffect(() => {
+    if (!hasStartedInitialLoad || mysqlStatus !== 'connected' || !mysqlEnabled) return;
+
+    const pollInterval = setInterval(async () => {
+      // Avoid polling if we are actively syncing/pushing data to server
+      if (isSyncing) return;
+
+      try {
+        const dbData = await fetchMySQLData(mysqlApiUrl);
+        if (dbData.success && dbData.users && dbData.tasks && dbData.notifications) {
+          const serializedTasks = JSON.stringify(dbData.tasks);
+          const serializedUsers = JSON.stringify(dbData.users);
+          const serializedNotifs = JSON.stringify(dbData.notifications);
+
+          setTasks(prev => {
+            if (JSON.stringify(prev) !== serializedTasks) {
+              return dbData.tasks || prev;
+            }
+            return prev;
+          });
+
+          setUsers(prev => {
+            if (JSON.stringify(prev) !== serializedUsers) {
+              const found = dbData.users?.find(u => u.id === currentUser?.id);
+              if (found && JSON.stringify(found) !== JSON.stringify(currentUser)) {
+                setCurrentUser(found);
+              }
+              return dbData.users || prev;
+            }
+            return prev;
+          });
+
+          setNotifications(prev => {
+            if (JSON.stringify(prev) !== serializedNotifs) {
+              return dbData.notifications || prev;
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.warn("MySQL Live Poll Background Sync: connection failed", err);
+      }
+    }, 4000); // Poll every 4 seconds for excellent real-time responsiveness without overloading the server
+
+    return () => clearInterval(pollInterval);
+  }, [hasStartedInitialLoad, mysqlStatus, mysqlEnabled, mysqlApiUrl, isSyncing, currentUser]);
+
   // UI state
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [searchQuery, setSearchQuery] = useState('');
@@ -620,9 +706,15 @@ export default function App() {
     setDbLastAction(`MOVE__${taskId}__${targetStatus}`);
 
     // Raise responsive alert
+    const assigneesNames = (task.assignedUsers || [])
+      .map(uid => users.find(u => u.id === uid)?.name)
+      .filter(Boolean)
+      .join('، ') || 'بدون اپراتور';
+    const creatorName = task.creatorName || users.find(u => u.id === (task.creatorId || 'user_1'))?.name || 'سارا رضایی';
+
     triggerLocalNotification(
       'تغییر وضعیت تسک',
-      `وظیفه "${task.title}" توسط ${currentUser.name} به ستون "${PersianColumns[targetStatus]}" منتقل شد.`,
+      `وظیفه "${task.title}" توسط ${currentUser.name} به ستون "${PersianColumns[targetStatus]}" منتقل شد. [مخاطبان اطلاع‌رسانی: مجری (${assigneesNames}) و سازنده (${creatorName})]`,
       'success'
     );
 
@@ -654,7 +746,8 @@ export default function App() {
   const handleTaskModalSubmit = (taskData: Omit<Task, 'id' | 'createdAt' | 'notes'> & { id?: string; notes?: Task['notes']; chatMessages?: Task['chatMessages'] }) => {
     if (taskData.id) {
       // Edit mode
-      const isChatAdded = taskData.chatMessages && taskData.chatMessages.length !== (tasks.find(t => t.id === taskData.id)?.chatMessages || []).length;
+      const taskOriginal = tasks.find(t => t.id === taskData.id);
+      const isChatAdded = taskData.chatMessages && taskData.chatMessages.length !== (taskOriginal?.chatMessages || []).length;
       
       setTasks(prev => prev.map(t => {
         if (t.id === taskData.id) {
@@ -675,16 +768,45 @@ export default function App() {
 
       if (isChatAdded) {
         setDbLastAction(`CHAT__${taskData.id}__add`);
+        const latestMsg = taskData.chatMessages && taskData.chatMessages[taskData.chatMessages.length - 1];
+        const senderName = latestMsg ? latestMsg.senderName : currentUser.name;
+        
+        const isCreatorSender = (taskOriginal?.creatorId || 'user_1') === (latestMsg?.senderId || currentUser.id);
+        const assigneesNames = (taskOriginal?.assignedUsers || [])
+          .filter(uid => uid !== (latestMsg?.senderId || currentUser.id))
+          .map(uid => users.find(u => u.id === uid)?.name)
+          .filter(Boolean)
+          .join('، ');
+
+        const creatorName = taskOriginal?.creatorName || users.find(u => u.id === (taskOriginal?.creatorId || 'user_1'))?.name || 'سارا رضایی';
+
+        let destText = '';
+        if (assigneesNames && !isCreatorSender) {
+          destText = `مجری (${assigneesNames}) و سازنده‌ تسک (${creatorName})`;
+        } else if (assigneesNames) {
+          destText = `مجری (${assigneesNames})`;
+        } else if (!isCreatorSender) {
+          destText = `سازنده‌ تسک (${creatorName})`;
+        } else {
+          destText = `اعضای تیم شیفت`;
+        }
+
         triggerLocalNotification(
           'پیام جدید در چت',
-          `پیام جدیدی در گفتگوی تسک "${taskData.title}" ثبت گردید.`,
+          `پیام جدیدی از "${senderName}" در گفتگوی تسک "${taskData.title}" ثبت گردید. [مخاطبان: ${destText}]`,
           'info'
         );
       } else {
         setDbLastAction(`EDIT__${taskData.id}__update`);
+        const assigneesNames = (taskData.assignedUsers || [])
+          .map(uid => users.find(u => u.id === uid)?.name)
+          .filter(Boolean)
+          .join('، ') || 'بدون اپراتور';
+        const creatorName = taskOriginal?.creatorName || users.find(u => u.id === (taskOriginal?.creatorId || 'user_1'))?.name || 'سارا رضایی';
+
         triggerLocalNotification(
           'به‌روزرسانی وظیفه',
-          `مشخصات تسک "${taskData.title}" توسط ${currentUser.name} با موفقیت ویرایش گردید.`,
+          `مشخصات تسک "${taskData.title}" توسط ${currentUser.name} با موفقیت ویرایش گردید. [مخاطبان اطلاع‌رسانی: مجری (${assigneesNames}) و سازنده (${creatorName})]`,
           'success'
         );
 
@@ -718,6 +840,8 @@ export default function App() {
         dueDate: taskData.dueDate,
         notes: [],
         chatMessages: [],
+        creatorId: currentUser.id,
+        creatorName: currentUser.name,
         createdAt: 'امروز ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
       };
 
