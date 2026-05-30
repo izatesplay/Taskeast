@@ -61,4 +61,5 @@ export interface Notification {
   createdAt: string; // Formatted date or time
   read: boolean;
   type: 'info' | 'success' | 'warning' | 'urgent';
+  targetUsers?: string[]; // IDs of users who should receive this notification
 }

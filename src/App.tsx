@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Task, TaskStatus, TaskPriority, User, Notification as AppNotification } from './types';
 import { mockUsers, initialTasks, initialNotifications } from './mockData';
 import LandingPage from './components/LandingPage';
@@ -406,6 +406,58 @@ export default function App() {
     return () => clearInterval(pollInterval);
   }, [hasStartedInitialLoad, mysqlStatus, mysqlEnabled, mysqlApiUrl, isSyncing, currentUser]);
 
+  // 3. Dynamic Notification & Sound Reactor (Plays sounds and fires overlay toasts when net-new global/targeted notifications are synced/pulled from storage or database)
+  const processedNotifIds = useRef<Set<string>>(new Set());
+
+  // First-load initialization of notifications IDs to prevent noisy alerts on initial app load
+  useEffect(() => {
+    if (notifications && notifications.length > 0 && processedNotifIds.current.size === 0) {
+      notifications.forEach(n => processedNotifIds.current.add(n.id));
+    }
+  }, [notifications]);
+
+  useEffect(() => {
+    if (!notifications || notifications.length === 0) return;
+
+    let soundTypePlayedThisBatch: string | null = null;
+
+    notifications.forEach(notif => {
+      if (!processedNotifIds.current.has(notif.id)) {
+        processedNotifIds.current.add(notif.id);
+
+        const isTargetedToMe = !notif.targetUsers || notif.targetUsers.includes(currentUser?.id);
+
+        if (isTargetedToMe) {
+          // Push to floating toasts
+          setActiveToasts(prev => {
+            if (prev.some(t => t.id === notif.id)) return prev;
+            return [notif, ...prev];
+          });
+
+          // Auto-cleanup toast overlay after 5 seconds
+          setTimeout(() => {
+            setActiveToasts(prev => prev.filter(t => t.id !== notif.id));
+          }, 5500);
+
+          // Track the highest priority sound type in this batch instead of overlapping sound audio-nodes immediately
+          if (!soundTypePlayedThisBatch) {
+            soundTypePlayedThisBatch = notif.type;
+          } else if (notif.type === 'urgent' || notif.type === 'warning') {
+            soundTypePlayedThisBatch = notif.type;
+          }
+        }
+      }
+    });
+
+    if (soundTypePlayedThisBatch) {
+      if (soundTypePlayedThisBatch === 'info' && notifications[0]?.title?.includes('چت')) {
+        playNotificationSound('chat');
+      } else {
+        playNotificationSound(soundTypePlayedThisBatch as any);
+      }
+    }
+  }, [notifications, currentUser?.id]);
+
   // UI state
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [searchQuery, setSearchQuery] = useState('');
@@ -570,7 +622,7 @@ export default function App() {
   };
 
   // Web Audio chime builder
-  const playNotificationSound = (isHighPriority: boolean = false) => {
+  const playNotificationSound = (typeOrPriority: 'info' | 'success' | 'warning' | 'urgent' | 'chat' | boolean = false) => {
     if (!soundEnabled) return;
     try {
       // @ts-ignore
@@ -578,7 +630,43 @@ export default function App() {
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       
-      if (isHighPriority) {
+      let isHigh = typeOrPriority === 'urgent' || typeOrPriority === 'warning' || typeOrPriority === true;
+      let isChat = typeOrPriority === 'chat';
+      let isSuccess = typeOrPriority === 'success';
+
+      if (isSuccess) {
+        // High fidelity elegant upward Success chime
+        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gainNode = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+          
+          gainNode.gain.setValueAtTime(0.04, ctx.currentTime + idx * 0.08);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.25);
+          
+          osc.connect(gainNode);
+          gainNode.connect(ctx.destination);
+          osc.start(ctx.currentTime + idx * 0.08);
+          osc.stop(ctx.currentTime + idx * 0.08 + 0.25);
+        });
+      } else if (isChat) {
+        // Modern premium bubble pop sound
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1050, ctx.currentTime + 0.12);
+        
+        gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      } else if (isHigh) {
         // Double alarm chords Sequence
         const osc1 = ctx.createOscillator();
         const osc2 = ctx.createOscillator();
@@ -593,30 +681,34 @@ export default function App() {
         osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
         
         gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
         
         osc1.connect(gainNode);
         osc1.start();
         osc1.stop(ctx.currentTime + 0.35);
         
+        osc2.connect(gainNode);
+        osc2.start();
+        osc2.stop(ctx.currentTime + 0.35);
+        
         gainNode.connect(ctx.destination);
       } else {
-        // Gentle Notification Chime
-        const osc = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-        
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(783.99, ctx.currentTime + 0.12);
-        
-        gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.30);
-        
-        osc.connect(gainNode);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.30);
-        
-        gainNode.connect(ctx.destination);
+        // Warm Double Chime for general Info
+        const notes = [659.25, 783.99]; // E5, G5
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gainNode = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.1);
+          
+          gainNode.gain.setValueAtTime(0.05, ctx.currentTime + idx * 0.1);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.1 + 0.2);
+          
+          osc.connect(gainNode);
+          gainNode.connect(ctx.destination);
+          osc.start(ctx.currentTime + idx * 0.1);
+          osc.stop(ctx.currentTime + idx * 0.1 + 0.2);
+        });
       }
     } catch (e) {
       console.warn('AudioContext failed to start.', e);
@@ -624,40 +716,49 @@ export default function App() {
   };
 
   // Helper to append a dynamic notification and transient toast
-  const triggerLocalNotification = (title: string, message: string, type: 'info' | 'success' | 'warning' | 'urgent') => {
+  const triggerLocalNotification = (
+    title: string, 
+    message: string, 
+    type: 'info' | 'success' | 'warning' | 'urgent',
+    targetUsers?: string[]
+  ) => {
     const freshNotif: AppNotification = {
       id: 'notif_' + Date.now() + Math.random().toString(36).substr(2, 5),
       title,
       message,
       createdAt: 'هم‌اکنون ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }),
       read: false,
-      type
+      type,
+      targetUsers
     };
 
     setNotifications(prev => [freshNotif, ...prev]);
     
-    // Add to toasts list
-    setActiveToasts(prev => [freshNotif, ...prev]);
+    // Check if the current user belongs to the target list
+    const isTargetedToMe = !targetUsers || targetUsers.includes(currentUser?.id);
+    if (isTargetedToMe) {
+      // Add to toasts list
+      setActiveToasts(prev => [freshNotif, ...prev]);
 
-    // Cleanup toast after 5 seconds automatically
-    setTimeout(() => {
-      setActiveToasts(prev => prev.filter(t => t.id !== freshNotif.id));
-    }, 5500);
+      // Cleanup toast after 5 seconds automatically
+      setTimeout(() => {
+        setActiveToasts(prev => prev.filter(t => t.id !== freshNotif.id));
+      }, 5500);
 
-    // Play subtle sound!
-    const isHighOrUrgent = type === 'urgent' || type === 'warning';
-    playNotificationSound(isHighOrUrgent);
+      // Play designated sound
+      playNotificationSound(type);
 
-    // Trigger HTML5 Native Desktop Push Notification
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      try {
-        new Notification(`📞 ${title}`, {
-          body: message,
-          tag: freshNotif.id,
-          dir: 'rtl'
-        });
-      } catch (e) {
-        console.warn('Native browser push failed:', e);
+      // Trigger HTML5 Native Desktop Push Notification
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(`📞 ${title}`, {
+            body: message,
+            tag: freshNotif.id,
+            dir: 'rtl'
+          });
+        } catch (e) {
+          console.warn('Native browser push failed:', e);
+        }
       }
     }
   };
@@ -712,10 +813,16 @@ export default function App() {
       .join('، ') || 'بدون اپراتور';
     const creatorName = task.creatorName || users.find(u => u.id === (task.creatorId || 'user_1'))?.name || 'سارا رضایی';
 
+    const targetUids = new Set<string>();
+    targetUids.add(task.creatorId || 'user_1');
+    (task.assignedUsers || []).forEach(uid => targetUids.add(uid));
+    targetUids.add(currentUser.id);
+
     triggerLocalNotification(
       'تغییر وضعیت تسک',
-      `وظیفه "${task.title}" توسط ${currentUser.name} به ستون "${PersianColumns[targetStatus]}" منتقل شد. [مخاطبان اطلاع‌رسانی: مجری (${assigneesNames}) و سازنده (${creatorName})]`,
-      'success'
+      `وظیفه "${task.title}" توسط ${currentUser.name} به ستون "${PersianColumns[targetStatus]}" منتقل شد.`,
+      'success',
+      Array.from(targetUids)
     );
 
     // Record Activity Log
@@ -771,43 +878,30 @@ export default function App() {
         const latestMsg = taskData.chatMessages && taskData.chatMessages[taskData.chatMessages.length - 1];
         const senderName = latestMsg ? latestMsg.senderName : currentUser.name;
         
-        const isCreatorSender = (taskOriginal?.creatorId || 'user_1') === (latestMsg?.senderId || currentUser.id);
-        const assigneesNames = (taskOriginal?.assignedUsers || [])
-          .filter(uid => uid !== (latestMsg?.senderId || currentUser.id))
-          .map(uid => users.find(u => u.id === uid)?.name)
-          .filter(Boolean)
-          .join('، ');
-
-        const creatorName = taskOriginal?.creatorName || users.find(u => u.id === (taskOriginal?.creatorId || 'user_1'))?.name || 'سارا رضایی';
-
-        let destText = '';
-        if (assigneesNames && !isCreatorSender) {
-          destText = `مجری (${assigneesNames}) و سازنده‌ تسک (${creatorName})`;
-        } else if (assigneesNames) {
-          destText = `مجری (${assigneesNames})`;
-        } else if (!isCreatorSender) {
-          destText = `سازنده‌ تسک (${creatorName})`;
-        } else {
-          destText = `اعضای تیم شیفت`;
-        }
+        const targetUids = new Set<string>();
+        targetUids.add(taskOriginal?.creatorId || 'user_1');
+        (taskOriginal?.assignedUsers || []).forEach(uid => targetUids.add(uid));
+        targetUids.add(currentUser.id);
 
         triggerLocalNotification(
           'پیام جدید در چت',
-          `پیام جدیدی از "${senderName}" در گفتگوی تسک "${taskData.title}" ثبت گردید. [مخاطبان: ${destText}]`,
-          'info'
+          `پیام جدیدی از "${senderName}" در گفتگوی تسک "${taskData.title}" ثبت گردید.`,
+          'info',
+          Array.from(targetUids)
         );
       } else {
         setDbLastAction(`EDIT__${taskData.id}__update`);
-        const assigneesNames = (taskData.assignedUsers || [])
-          .map(uid => users.find(u => u.id === uid)?.name)
-          .filter(Boolean)
-          .join('، ') || 'بدون اپراتور';
-        const creatorName = taskOriginal?.creatorName || users.find(u => u.id === (taskOriginal?.creatorId || 'user_1'))?.name || 'سارا رضایی';
+        
+        const targetUids = new Set<string>();
+        targetUids.add(taskOriginal?.creatorId || 'user_1');
+        (taskData.assignedUsers || []).forEach(uid => targetUids.add(uid));
+        targetUids.add(currentUser.id);
 
         triggerLocalNotification(
           'به‌روزرسانی وظیفه',
-          `مشخصات تسک "${taskData.title}" توسط ${currentUser.name} با موفقیت ویرایش گردید. [مخاطبان اطلاع‌رسانی: مجری (${assigneesNames}) و سازنده (${creatorName})]`,
-          'success'
+          `مشخصات تسک "${taskData.title}" توسط ${currentUser.name} با موفقیت ویرایش گردید.`,
+          'success',
+          Array.from(targetUids)
         );
 
         // Record Edit Action Activity Log
@@ -848,12 +942,17 @@ export default function App() {
       setTasks(prev => [freshTask, ...prev]);
       setDbLastAction(`ADD__${freshTask.title}__create`);
 
+      const targetUids = new Set<string>();
+      targetUids.add(currentUser.id);
+      (freshTask.assignedUsers || []).forEach(uid => targetUids.add(uid));
+
       triggerLocalNotification(
         'ایجاد بلیت کار جدید',
         `تسک "${freshTask.title}" با اولویت ${
           freshTask.priority === 'urgent' ? 'فوری' : freshTask.priority === 'high' ? 'مهم' : 'معمولی'
         } توسط ${currentUser.name} به برد اضافه شد.`,
-        freshTask.priority === 'urgent' ? 'urgent' : 'success'
+        freshTask.priority === 'urgent' ? 'urgent' : 'success',
+        Array.from(targetUids)
       );
 
       // Record Creation Activity Log
@@ -885,10 +984,16 @@ export default function App() {
 
     setTasks(prev => prev.filter(t => t.id !== id));
     setDbLastAction(`DELETE__${id}__remove`);
+    const targetUids = new Set<string>();
+    targetUids.add(task.creatorId || 'user_1');
+    (task.assignedUsers || []).forEach(uid => targetUids.add(uid));
+    targetUids.add(currentUser.id);
+
     triggerLocalNotification(
       'حذف وظیفه',
       `تسک "${task.title}" توسط ${currentUser.name} از آرشیو برد کالسنتر حذف شد.`,
-      'warning'
+      'warning',
+      Array.from(targetUids)
     );
 
     // Record Deletion Activity Log
@@ -1054,12 +1159,12 @@ export default function App() {
 
             {/* Notification drop center */}
             <NotificationCenter
-              notifications={notifications}
+              notifications={(notifications || []).filter(n => !n.targetUsers || n.targetUsers.includes(currentUser.id))}
               onMarkAsRead={handleMarkAsRead}
               onMarkAllAsRead={handleMarkAllAsRead}
               onClearAll={handleClearAllNotifications}
               onDismissToast={handleDismissToast}
-              activeToasts={activeToasts}
+              activeToasts={(activeToasts || []).filter(t => !t.targetUsers || t.targetUsers.includes(currentUser.id))}
               dropdownOpen={isNotificationDropdownOpen}
               setDropdownOpen={setIsNotificationDropdownOpen}
               soundEnabled={soundEnabled}
