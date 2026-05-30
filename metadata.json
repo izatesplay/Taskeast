@@ -1,0 +1,6 @@
+{
+  "name": "Task manager",
+  "description": "سیستم مدیریت وظایف کانبان برای تیم‌های کالسنتر با ویژگی‌های همکاری، پیگیری هوشمند و اعلان‌های آنی",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

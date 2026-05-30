@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "Task": {
+      "title": "Task",
+      "description": "A Kanban task representing an active customer support or technical issue",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["todo", "in_progress", "done"] },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "urgent"] },
+        "assignedUsers": { "type": "array" },
+        "dueDate": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "status", "priority", "assignedUsers", "dueDate", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "An in-app chat message attached to a Kanban task",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "taskId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "messageText": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "fileAttachment": { "type": "object" }
+      },
+      "required": ["id", "taskId", "senderId", "senderName", "messageText", "timestamp"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A live-streamed system notification or event alert",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "read": { "type": "boolean" },
+        "type": { "type": "string", "enum": ["info", "success", "warning", "urgent"] }
+      },
+      "required": ["id", "title", "message", "createdAt", "read", "type"]
+    }
+  },
+  "firestore": {
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Kanban workspace task entries"
+    },
+    "/tasks/{taskId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "In-app real-time comments and attachment logs attached to tasks"
+    },
+    "/notifications/{notifId}": {
+      "schema": "Notification",
+      "description": "System-wide alert history logs"
+    }
+  }
+}
