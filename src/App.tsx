@@ -14,8 +14,6 @@ import ShiftReportModal from './components/ShiftReportModal';
 import DatabaseControl from './components/DatabaseControl';
 import CalendarView from './components/CalendarView';
 import ActivityLog, { ActivityLogItem } from './components/ActivityLog';
-import { signInAnonymously } from 'firebase/auth';
-import { auth } from './firebase';
 import { checkMySQLStatus, fetchMySQLData, syncAllToMySQL } from './mysqlSync';
 import { 
   Plus, 
@@ -213,17 +211,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('callcenter_is_logged_in', String(isLoggedIn));
   }, [isLoggedIn]);
-
-  // Anonymous Firebase Sign-in to satisfy isSignedIn() in firestore.rules
-  useEffect(() => {
-    signInAnonymously(auth)
-      .then((cred) => {
-        console.log("Authenticated anonymously to secure Firestore:", cred.user.uid);
-      })
-      .catch((error) => {
-        console.error("Firebase Anonymous Auth failed:", error);
-      });
-  }, []);
 
   // MySQL / cPanel phpMyAdmin Synchronisation Engine
   const [mysqlEnabled, setMysqlEnabled] = useState<boolean>(() => {

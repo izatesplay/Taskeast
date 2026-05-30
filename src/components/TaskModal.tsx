@@ -6,8 +6,6 @@
 import React, { useState, useEffect } from 'react';
 import { Task, TaskPriority, TaskStatus, User, Note, ChatMessage } from '../types';
 import { getDynamicUsers } from '../mockData';
-import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
 import { 
   X, 
   Plus, 
@@ -65,67 +63,16 @@ export default function TaskModal({
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Firestore Subscription for Task Chat Messages
+  // Local task chat messages loading
   useEffect(() => {
-    if (!isOpen || !taskToEdit) {
+    if (isOpen && taskToEdit) {
+      setIsLoadingMessages(true);
+      setMessages(taskToEdit.chatMessages || []);
+      setIsLoadingMessages(false);
+    } else {
       setMessages([]);
-      return;
     }
-
-    setIsLoadingMessages(true);
-    const path = `tasks/${taskToEdit.id}/messages`;
-
-    const messagesCollection = collection(db, 'tasks', taskToEdit.id, 'messages');
-
-    // Attach real-time snapshot listener
-    const unsubscribe = onSnapshot(
-      messagesCollection,
-      async (snapshot) => {
-        setIsLoadingMessages(false);
-        if (snapshot.empty) {
-          // Sync existing local mock messages into Firestore if none are present in FireStore yet
-          const initialMsgs = taskToEdit.chatMessages || [];
-          if (initialMsgs.length > 0) {
-            for (const msg of initialMsgs) {
-              const cleanedMsg = {
-                id: msg.id,
-                taskId: msg.taskId,
-                senderId: msg.senderId,
-                senderName: msg.senderName,
-                messageText: msg.messageText,
-                timestamp: msg.timestamp,
-                ...(msg.fileAttachment ? { fileAttachment: msg.fileAttachment } : {})
-              };
-              try {
-                await setDoc(doc(db, 'tasks', taskToEdit.id, 'messages', msg.id), cleanedMsg);
-              } catch (e) {
-                console.warn("Error seeding path:", e);
-              }
-            }
-          } else {
-            setMessages([]);
-          }
-        } else {
-          const list: ChatMessage[] = [];
-          snapshot.forEach((docSnap) => {
-            list.push(docSnap.data() as ChatMessage);
-          });
-          // Chronologically sort messages in memory
-          list.sort((a, b) => String(a.id).localeCompare(String(b.id)));
-          setMessages(list);
-        }
-      },
-      (error) => {
-        setIsLoadingMessages(false);
-        // CRITICAL: Handle the FireStore permissions / quota error conforming to skill guidelines
-        handleFirestoreError(error, OperationType.GET, path);
-      }
-    );
-
-    return () => {
-      unsubscribe();
-    };
-  }, [isOpen, taskToEdit?.id]);
+  }, [isOpen, taskToEdit?.id, taskToEdit?.chatMessages]);
 
   // Reset form when modal opens or task changes
   useEffect(() => {
@@ -218,18 +165,14 @@ export default function TaskModal({
       ...(attachedFile ? { fileAttachment: attachedFile } : {})
     };
 
-    const path = `tasks/${taskToEdit.id}/messages/${messageId}`;
-    setDoc(doc(db, 'tasks', taskToEdit.id, 'messages', messageId), freshMessage)
-      .then(() => {
-        // Increment count indicator in App component so toasts/notifications trigger
-        onSubmit({
-          ...taskToEdit,
-          chatMessages: [...messages, freshMessage]
-        });
-      })
-      .catch((error) => {
-        handleFirestoreError(error, OperationType.WRITE, path);
-      });
+    const updatedMessages = [...messages, freshMessage];
+    setMessages(updatedMessages);
+
+    // Persist message on submit
+    onSubmit({
+      ...taskToEdit,
+      chatMessages: updatedMessages
+    });
 
     setChatText('');
     setAttachedFile(null);
@@ -264,17 +207,13 @@ export default function TaskModal({
 
       setIsTyping(false);
       
-      const replyPath = `tasks/${taskToEdit.id}/messages/${simulatedMsgId}`;
-      setDoc(doc(db, 'tasks', taskToEdit.id, 'messages', simulatedMsgId), simulatedMessage)
-        .then(() => {
-          onSubmit({
-            ...taskToEdit,
-            chatMessages: [...messages, freshMessage, simulatedMessage]
-          });
-        })
-        .catch((error) => {
-          handleFirestoreError(error, OperationType.WRITE, replyPath);
-        });
+      const finalMessages = [...updatedMessages, simulatedMessage];
+      setMessages(finalMessages);
+
+      onSubmit({
+        ...taskToEdit,
+        chatMessages: finalMessages
+      });
 
     }, 3800);
   };
