@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Task, TaskStatus, TaskPriority, User, Notification } from './types';
+import { Task, TaskStatus, TaskPriority, User, Notification as AppNotification } from './types';
 import { mockUsers, initialTasks, initialNotifications } from './mockData';
 import LandingPage from './components/LandingPage';
 import BoardColumn from './components/BoardColumn';
@@ -13,6 +13,7 @@ import NotificationCenter from './components/NotificationCenter';
 import ShiftReportModal from './components/ShiftReportModal';
 import DatabaseControl from './components/DatabaseControl';
 import CalendarView from './components/CalendarView';
+import ActivityLog, { ActivityLogItem } from './components/ActivityLog';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './firebase';
 import { checkMySQLStatus, fetchMySQLData, syncAllToMySQL } from './mysqlSync';
@@ -70,7 +71,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : initialTasks;
   });
 
-  const [notifications, setNotifications] = useState<Notification[]>(() => {
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
     const saved = localStorage.getItem('callcenter_notifications');
     return saved ? JSON.parse(saved) : initialNotifications;
   });
@@ -102,6 +103,108 @@ export default function App() {
     }
     return currentUsersList[0]; // Default to Sarah Rezaei (Shift Manager)
   });
+
+  // State tracker for Activity Logs
+  const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>(() => {
+    const saved = localStorage.getItem('callcenter_activity_logs');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+    return [
+      {
+        id: 'log_seed_1',
+        taskTitle: 'بررسی قطعی خطوط سانترال طبقه دوم',
+        user: {
+          id: 'user_1',
+          name: 'سارا رضایی',
+          role: 'مدیر شیفت کالسنتر',
+          avatarColor: 'bg-emerald-600',
+          initials: 'سر'
+        },
+        type: 'status_change',
+        details: 'از ستون "در انتظار اقدام" به ستون "در حال انجام" منتقل شد',
+        timestamp: new Date(Date.now() - 3600000 * 2).toISOString()
+      },
+      {
+        id: 'log_seed_2',
+        taskTitle: 'تنظیم شیفت شب اپراتورهای بخش پاسخگویی',
+        user: {
+          id: 'user_1',
+          name: 'سارا رضایی',
+          role: 'مدیر شیفت کالسنتر',
+          avatarColor: 'bg-emerald-600',
+          initials: 'سر'
+        },
+        type: 'creation',
+        details: 'بلیت کار جدید با اولویت فوری ثبت گردید',
+        timestamp: new Date(Date.now() - 3600000 * 5).toISOString()
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('callcenter_activity_logs', JSON.stringify(activityLogs));
+  }, [activityLogs]);
+
+  // Browser push notifications permission status state
+  const [browserPushEnabled, setBrowserPushEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission === 'granted';
+    }
+    return false;
+  });
+
+  // Handle native desktop alert toggle/requests
+  const handleToggleBrowserPush = async () => {
+    if (!('Notification' in window)) {
+      triggerLocalToast({
+        title: 'عدم پشتیبانی مرورگر',
+        message: 'نوتیفیکیشن بومی در مرورگر شما پشتیبانی نمی‌شود.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      triggerLocalToast({
+        title: 'فعال مجدد',
+        message: 'دسترسی پوش نوتیفیکیشن هم‌اکنون برای شما فعال است.',
+        type: 'success'
+      });
+      setBrowserPushEnabled(true);
+    } else if (Notification.permission === 'denied') {
+      triggerLocalToast({
+        title: 'دسترسی مسدود شده',
+        message: 'لطفاً دسترسی اعلان را در تنظیمات آدرس‌بار مرورگر خویش دستی آزاد کنید.',
+        type: 'warning'
+      });
+    } else {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        setBrowserPushEnabled(true);
+        triggerLocalToast({
+          title: 'فعال شد!',
+          message: 'اعلان‌های سیستمی روی دسکتاپ شما ارسال خواهند شد.',
+          type: 'success'
+        });
+        
+        try {
+          new Notification('📞 کالسنتر هوشمند', {
+            body: 'تست سیستم زنده. اتصال پوش دسکتاپ با موفقیت برقرار شد!',
+            dir: 'rtl'
+          });
+        } catch (err) {
+          console.warn('Native alert failed:', err);
+        }
+      } else {
+        setBrowserPushEnabled(false);
+      }
+    }
+  };
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return localStorage.getItem('callcenter_is_logged_in') === 'true';
@@ -237,7 +340,7 @@ export default function App() {
   const [filterUser, setFilterUser] = useState<string | 'all'>('all');
 
   // Toast array (transient real-time bottom-left popups)
-  const [activeToasts, setActiveToasts] = useState<Notification[]>([]);
+  const [activeToasts, setActiveToasts] = useState<AppNotification[]>([]);
 
   // Modal handlers
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -248,6 +351,7 @@ export default function App() {
   const [dbLastAction, setDbLastAction] = useState<string>('');
 
   // Form states for operator administration panel
+  const isSupervisor = currentUser?.role === 'مدیر شیفت کالسنتر' || currentUser?.id === 'user_1' || currentUser?.id === 'user_admin';
   const [newOpName, setNewOpName] = useState('');
   const [newOpRole, setNewOpRole] = useState('اپراتور پاسخگویی شیفت');
   const [newOpPassword, setNewOpPassword] = useState('');
@@ -448,7 +552,7 @@ export default function App() {
 
   // Helper to append a dynamic notification and transient toast
   const triggerLocalNotification = (title: string, message: string, type: 'info' | 'success' | 'warning' | 'urgent') => {
-    const freshNotif: Notification = {
+    const freshNotif: AppNotification = {
       id: 'notif_' + Date.now() + Math.random().toString(36).substr(2, 5),
       title,
       message,
@@ -470,11 +574,24 @@ export default function App() {
     // Play subtle sound!
     const isHighOrUrgent = type === 'urgent' || type === 'warning';
     playNotificationSound(isHighOrUrgent);
+
+    // Trigger HTML5 Native Desktop Push Notification
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification(`📞 ${title}`, {
+          body: message,
+          tag: freshNotif.id,
+          dir: 'rtl'
+        });
+      } catch (e) {
+        console.warn('Native browser push failed:', e);
+      }
+    }
   };
 
   // Just temporary Toast overlay without adding to historical system log
-  const triggerLocalToast = (toastParams: Omit<Notification, 'id' | 'createdAt' | 'read'>) => {
-    const freshToast: Notification = {
+  const triggerLocalToast = (toastParams: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => {
+    const freshToast: AppNotification = {
       ...toastParams,
       id: 'toast_' + Date.now(),
       createdAt: 'هم‌اکنون',
@@ -521,6 +638,24 @@ export default function App() {
       `وظیفه "${task.title}" توسط ${currentUser.name} به ستون "${PersianColumns[targetStatus]}" منتقل شد.`,
       'success'
     );
+
+    // Record Activity Log
+    const newChangeLog: ActivityLogItem = {
+      id: 'log_' + Date.now() + Math.random().toString(36).substr(2, 5),
+      taskId,
+      taskTitle: task.title,
+      user: {
+        id: currentUser.id,
+        name: currentUser.name,
+        role: currentUser.role,
+        avatarColor: currentUser.avatarColor,
+        initials: currentUser.initials
+      },
+      type: 'status_change',
+      details: `از ستون "${PersianColumns[task.status]}" به ستون "${PersianColumns[targetStatus]}" منتقل شد`,
+      timestamp: new Date().toISOString()
+    };
+    setActivityLogs(prev => [newChangeLog, ...prev]);
   };
 
   // Quick move via Dropdown select list (accessibility)
@@ -565,6 +700,24 @@ export default function App() {
           `مشخصات تسک "${taskData.title}" توسط ${currentUser.name} با موفقیت ویرایش گردید.`,
           'success'
         );
+
+        // Record Edit Action Activity Log
+        const newEditLog: ActivityLogItem = {
+          id: 'log_' + Date.now() + Math.random().toString(36).substr(2, 5),
+          taskId: taskData.id,
+          taskTitle: taskData.title,
+          user: {
+            id: currentUser.id,
+            name: currentUser.name,
+            role: currentUser.role,
+            avatarColor: currentUser.avatarColor,
+            initials: currentUser.initials
+          },
+          type: 'edit',
+          details: 'مشخصات و جزییات بلیت با موفقیت به‌روزرسانی گردید',
+          timestamp: new Date().toISOString()
+        };
+        setActivityLogs(prev => [newEditLog, ...prev]);
       }
     } else {
       // Create mode
@@ -591,6 +744,26 @@ export default function App() {
         } توسط ${currentUser.name} به برد اضافه شد.`,
         freshTask.priority === 'urgent' ? 'urgent' : 'success'
       );
+
+      // Record Creation Activity Log
+      const newCreationLog: ActivityLogItem = {
+        id: 'log_' + Date.now() + Math.random().toString(36).substr(2, 5),
+        taskId: freshTask.id,
+        taskTitle: freshTask.title,
+        user: {
+          id: currentUser.id,
+          name: currentUser.name,
+          role: currentUser.role,
+          avatarColor: currentUser.avatarColor,
+          initials: currentUser.initials
+        },
+        type: 'creation',
+        details: `بلیت کار جدید با اولیت "${
+          freshTask.priority === 'urgent' ? 'فوری' : freshTask.priority === 'high' ? 'مهم' : 'معمولی'
+        }" در بورد فعال شیفت ایجاد گردید`,
+        timestamp: new Date().toISOString()
+      };
+      setActivityLogs(prev => [newCreationLog, ...prev]);
     }
   };
 
@@ -606,6 +779,23 @@ export default function App() {
       `تسک "${task.title}" توسط ${currentUser.name} از آرشیو برد کالسنتر حذف شد.`,
       'warning'
     );
+
+    // Record Deletion Activity Log
+    const newDeleteLog: ActivityLogItem = {
+      id: 'log_' + Date.now() + Math.random().toString(36).substr(2, 5),
+      taskTitle: task.title,
+      user: {
+        id: currentUser.id,
+        name: currentUser.name,
+        role: currentUser.role,
+        avatarColor: currentUser.avatarColor,
+        initials: currentUser.initials
+      },
+      type: 'deletion',
+      details: 'بلیت کار کلاً از برد کالسنتر برای دپارتمان حذف و آرشیو گردید',
+      timestamp: new Date().toISOString()
+    };
+    setActivityLogs(prev => [newDeleteLog, ...prev]);
   };
 
   // Event subscriber is handled internally by real-time reactive states
@@ -760,6 +950,8 @@ export default function App() {
               setDropdownOpen={setIsNotificationDropdownOpen}
               soundEnabled={soundEnabled}
               onToggleSound={() => setSoundEnabled(!soundEnabled)}
+              browserPushEnabled={browserPushEnabled}
+              onToggleBrowserPush={handleToggleBrowserPush}
             />
 
             {/* Theme Toggle Button */}
@@ -874,25 +1066,51 @@ export default function App() {
             </button>
 
             {/* User credentials and Addition Admin panel toggle button */}
-            <button
-              id="admin-user-mgmt-btn"
-              onClick={() => setIsUserMgmtOpen(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.99] transition-transform cursor-pointer border border-transparent"
-              title="مدیریت ثبت کارشناس جدید و تنظیم گذرواژه‌ها"
-            >
-              <Users className="w-4 h-4" />
-              <span>مدیریت پرسنل و رمزها</span>
-            </button>
+            {isSupervisor && (
+              <button
+                id="admin-user-mgmt-btn"
+                onClick={() => setIsUserMgmtOpen(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.99] transition-transform cursor-pointer border border-transparent"
+                title="مدیریت ثبت کارشناس جدید و تنظیم گذرواژه‌ها"
+              >
+                <Users className="w-4 h-4" />
+                <span>مدیریت پرسنل و رمزها</span>
+              </button>
+            )}
 
             {/* Shift end report printable PDF exporter */}
-            <button
-              onClick={() => setIsReportModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.99] transition-transform cursor-pointer border border-transparent"
-              title="خروجی گزارش شیفت PDF"
-            >
-              <FileText className="w-4 h-4" />
-              <span>خروجی PDF شیفت</span>
-            </button>
+            {isSupervisor && (
+              <button
+                onClick={() => setIsReportModalOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.99] transition-transform cursor-pointer border border-transparent"
+                title="خروجی گزارش شیفت PDF"
+              >
+                <FileText className="w-4 h-4" />
+                <span>خروجی PDF شیفت</span>
+              </button>
+            )}
+
+            {/* Real-time search/filter input field next to Add Task button */}
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="جستجوی سریع بلیت‌ها..."
+                className="text-xs p-3 pr-9 pl-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-705 rounded-2xl outline-none focus:ring-1 focus:ring-purple-500 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 transition-all font-bold text-right w-40 focus:w-56 sm:w-48"
+                title="فیلتر آنی بلیت‌ها بر اساس عنوان یا متن توضیح"
+              />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute left-2.5 top-3 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
             {/* Add task CTA */}
             <button
@@ -901,7 +1119,7 @@ export default function App() {
                 setTaskToEdit(null);
                 setIsTaskModalOpen(true);
               }}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold px-4 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.99] transition-transform cursor-pointer"
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold px-4 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.99] transition-transform cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>ثبت تسک جدید</span>
@@ -912,28 +1130,30 @@ export default function App() {
         </div>
 
         {/* Database Sync Panel Controller */}
-        <DatabaseControl 
-          tasks={tasks}
-          notifications={notifications}
-          lastAction={dbLastAction}
-          mysqlEnabled={mysqlEnabled}
-          setMysqlEnabled={setMysqlEnabled}
-          mysqlApiUrl={mysqlApiUrl}
-          setMysqlApiUrl={setMysqlApiUrl}
-          mysqlStatus={mysqlStatus}
-          mysqlInfo={mysqlInfo}
-          isSyncing={isSyncing}
-          onManualSyncCheck={handleCheckAndLoadMySQL}
-        />
+        {isSupervisor && (
+          <DatabaseControl 
+            tasks={tasks}
+            notifications={notifications}
+            lastAction={dbLastAction}
+            mysqlEnabled={mysqlEnabled}
+            setMysqlEnabled={setMysqlEnabled}
+            mysqlApiUrl={mysqlApiUrl}
+            setMysqlApiUrl={setMysqlApiUrl}
+            mysqlStatus={mysqlStatus}
+            mysqlInfo={mysqlInfo}
+            isSyncing={isSyncing}
+            onManualSyncCheck={handleCheckAndLoadMySQL}
+          />
+        )}
 
         {/* 4. CHRONO DESK - INTERACTIVE VIEW TAB SWITCHER */}
-        <div className="flex items-center gap-2 bg-slate-150 bg-slate-100 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-1.5 rounded-2xl w-fit text-right" style={{ direction: 'rtl' }}>
+        <div className="flex flex-wrap items-center gap-2 bg-slate-100 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-1.5 rounded-2xl w-fit text-right" style={{ direction: 'rtl' }}>
           <button
             type="button"
             onClick={() => setActiveView('board')}
             className={`px-4.5 py-2.5 rounded-xl text-xs font-black transition-all duration-150 cursor-pointer flex items-center gap-2 ${
               activeView === 'board'
-                ? 'bg-purple-650 bg-purple-600 text-white shadow-md'
+                ? 'bg-purple-600 text-white shadow-md'
                 : 'text-slate-500 hover:text-slate-750 dark:hover:text-slate-300 dark:text-slate-400'
             }`}
           >
@@ -945,16 +1165,30 @@ export default function App() {
             onClick={() => setActiveView('calendar')}
             className={`px-4.5 py-2.5 rounded-xl text-xs font-black transition-all duration-150 cursor-pointer flex items-center gap-2 relative ${
               activeView === 'calendar'
-                ? 'bg-purple-650 bg-purple-600 text-white shadow-md'
+                ? 'bg-purple-600 text-white shadow-md'
                 : 'text-slate-500 hover:text-slate-750 dark:hover:text-slate-300 dark:text-slate-400'
             }`}
           >
             📅 تقویم و توزیع ددلاین‌ها
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           </button>
+
+          {isSupervisor && (
+            <button
+              type="button"
+              onClick={() => setActiveView('activity')}
+              className={`px-4.5 py-2.5 rounded-xl text-xs font-black transition-all duration-150 cursor-pointer flex items-center gap-2 ${
+                activeView === 'activity'
+                  ? 'bg-purple-600 text-white shadow-md font-black'
+                  : 'text-slate-500 hover:text-slate-750 dark:hover:text-slate-300 dark:text-slate-400'
+              }`}
+            >
+              🪵 کنترل فرآیند و لاگ عملکرد
+            </button>
+          )}
         </div>
 
-        {activeView === 'board' ? (
+        {activeView === 'board' && (
           /* 3. KANBAN BOARD WRAPPER - Columns Todo, In Progress, Done */
           <div className="flex flex-col md:flex-row gap-5 overflow-x-auto pb-4 items-stretch select-none">
             <BoardColumn
@@ -1002,13 +1236,23 @@ export default function App() {
               onDropTask={handleDropTask}
             />
           </div>
-        ) : (
+        )}
+
+        {activeView === 'calendar' && (
           <CalendarView
             tasks={filteredTasks}
             onViewTask={(task) => {
               setTaskToEdit(task);
               setIsTaskModalOpen(true);
             }}
+          />
+        )}
+
+        {activeView === 'activity' && isSupervisor && (
+          <ActivityLog 
+            logs={activityLogs}
+            onClearLogs={() => setActivityLogs([])}
+            isManager={isSupervisor}
           />
         )}
 
@@ -1038,10 +1282,12 @@ export default function App() {
         onClose={() => setIsReportModalOpen(false)}
         tasks={tasks}
         currentUser={currentUser}
+        activityLogs={activityLogs}
+        isSupervisor={isSupervisor}
       />
 
       {/* Operator and Passcode Administrative Management Modal */}
-      {isUserMgmtOpen && (
+      {isSupervisor && isUserMgmtOpen && (
         <div id="user-mgmt-modal-overlay" className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-right" style={{ direction: 'rtl' }}>
           <div className="bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-150">
             

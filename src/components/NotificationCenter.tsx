@@ -31,6 +31,8 @@ interface NotificationCenterProps {
   setDropdownOpen: (open: boolean) => void;
   soundEnabled?: boolean;
   onToggleSound?: () => void;
+  browserPushEnabled?: boolean;
+  onToggleBrowserPush?: () => void;
 }
 
 export default function NotificationCenter({
@@ -44,6 +46,8 @@ export default function NotificationCenter({
   setDropdownOpen,
   soundEnabled = true,
   onToggleSound,
+  browserPushEnabled = false,
+  onToggleBrowserPush,
 }: NotificationCenterProps) {
   
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -119,6 +123,20 @@ export default function NotificationCenter({
                   <p className="text-[10px] text-slate-400 mt-0.5">دریافت وقایع، ارجاعات و هشدارهای سرور</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {onToggleBrowserPush && (
+                    <button
+                      onClick={onToggleBrowserPush}
+                      className={`p-1.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                        browserPushEnabled 
+                          ? 'bg-emerald-100 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-850 text-emerald-700 dark:text-emerald-400 font-black' 
+                          : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-450'
+                      }`}
+                      title={browserPushEnabled ? 'غیرفعال‌سازی هوشمند پوش لپتاپ' : 'فعال‌سازی نوتیفیکیشن دسکتاپ'}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${browserPushEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                      <span className="hidden xs:inline">پوش مرورگر</span>
+                    </button>
+                  )}
                   {onToggleSound && (
                     <button
                       onClick={onToggleSound}

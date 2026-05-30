@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { Task, User, TaskPriority, TaskStatus } from '../types';
 import { 
   Calendar, 
@@ -84,7 +85,11 @@ export default function TaskCard({
   };
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
       draggable
       onDragStart={(e) => onDragStart(e, task.id)}
       className={`group relative bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4.5 shadow-xs hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-grab active:cursor-grabbing ${style.borderCol}`}
@@ -205,8 +210,10 @@ export default function TaskCard({
 
       {/* Modern, Self-Contained Persian Deletion Confirmation Overlay */}
       {showConfirmDelete && (
-        <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/98 rounded-2xl flex flex-col items-center justify-center p-4.5 z-25 text-center border border-rose-500/30 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-          <AlertTriangle className="w-8 h-8 text-rose-500 mb-2 animate-pulse" />
+        <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/98 rounded-2xl flex flex-col items-center justify-center p-4.5 z-25 text-center border border-rose-500/30 shadow-2xl animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+          {/* Critical Action warning background color pulse */}
+          <div className="absolute inset-0 bg-rose-500/10 dark:bg-rose-500/15 animate-[pulse_1.5s_infinite] pointer-events-none" />
+          <AlertTriangle className="w-8 h-8 text-rose-500 mb-2 animate-pulse z-10" />
           <h5 className="text-xs sm:text-sm font-black text-rose-600 dark:text-rose-400">حذف بلیت کاری</h5>
           <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4 leading-relaxed max-w-[200px]">
             آیا از حذف دائم این بلیت اطمینان دارید؟ تغییرات قابل بازگشت نخواهد بود.
@@ -232,6 +239,6 @@ export default function TaskCard({
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
