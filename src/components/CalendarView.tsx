@@ -94,9 +94,9 @@ export default function CalendarView({ tasks, onViewTask }: CalendarViewProps) {
   // Group tasks by day of current month
   const tasksByDay = useMemo(() => {
     const map: Record<number, Task[]> = {};
-    tasks.forEach(task => {
+    (tasks || []).forEach(task => {
       // Expect format 1405-XX-YY
-      const parts = task.dueDate.split('-');
+      const parts = (task.dueDate || '').split('-');
       if (parts.length === 3) {
         const year = parseInt(parts[0]);
         const m = parseInt(parts[1]);
@@ -142,8 +142,8 @@ export default function CalendarView({ tasks, onViewTask }: CalendarViewProps) {
       { name: 'هفته پنجم (۲۹-۳۱)', count: 0, highCount: 0 },
     ];
 
-    tasks.forEach(task => {
-      const parts = task.dueDate.split('-');
+    (tasks || []).forEach(task => {
+      const parts = (task.dueDate || '').split('-');
       if (parts.length === 3 && parseInt(parts[0]) === 1405 && parseInt(parts[1]) === selectedMonthId) {
         const d = parseInt(parts[2]);
         const isUrgentOrHigh = task.priority === 'urgent' || task.priority === 'high';

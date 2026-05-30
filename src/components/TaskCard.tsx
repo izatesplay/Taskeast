@@ -39,7 +39,7 @@ export default function TaskCard({
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   
   // Resolve assigned users
-  const assignedTeam = getDynamicUsers().filter(u => task.assignedUsers.includes(u.id));
+  const assignedTeam = getDynamicUsers().filter(u => task.assignedUsers?.includes(u.id));
 
   // Determine priority styling
   const getPriorityStyle = (priority: TaskPriority) => {
@@ -166,7 +166,7 @@ export default function TaskCard({
         <div className="flex items-center gap-3 text-slate-400">
           <div className="flex items-center gap-1 text-[11px]" title="یادداشت‌های ثبت‌شده">
             <MessageSquare className="w-3.5 h-3.5" />
-            <span className="font-mono">{task.notes.length}</span>
+            <span className="font-mono">{task.notes?.length || 0}</span>
           </div>
         </div>
 

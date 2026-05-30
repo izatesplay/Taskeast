@@ -50,7 +50,7 @@ export default function NotificationCenter({
   onToggleBrowserPush,
 }: NotificationCenterProps) {
   
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = (notifications || []).filter((n) => !n.read).length;
 
   // Visual icons representing notification severity types
   const getNotificationIcon = (type: string) => {
@@ -165,8 +165,8 @@ export default function NotificationCenter({
 
               {/* Notification Items List */}
               <div className="max-h-[320px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
-                {notifications.length > 0 ? (
-                  notifications.map((notif) => (
+                {(notifications || []).length > 0 ? (
+                  (notifications || []).map((notif) => (
                     <div
                       key={notif.id}
                       onClick={() => onMarkAsRead(notif.id)}
@@ -206,7 +206,7 @@ export default function NotificationCenter({
               </div>
 
               {/* Clear action footer */}
-              {notifications.length > 0 && (
+              {(notifications || []).length > 0 && (
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-950/20 border-t border-slate-100 dark:border-slate-800/60 text-center">
                   <button
                     onClick={onClearAll}

@@ -338,7 +338,7 @@ export default function App() {
   const [dbLastAction, setDbLastAction] = useState<string>('');
 
   // Form states for operator administration panel
-  const isSupervisor = currentUser?.role === 'مدیر شیفت کالسنتر' || currentUser?.id === 'user_1' || currentUser?.id === 'user_admin';
+  const isSupervisor = currentUser?.role === 'مدیر شیفت کالسنتر' || currentUser?.role?.includes('سرپرست') || currentUser?.role?.includes('سوپروایزر') || currentUser?.id === 'user_1' || currentUser?.id === 'user_admin';
   const [newOpName, setNewOpName] = useState('');
   const [newOpRole, setNewOpRole] = useState('اپراتور پاسخگویی شیفت');
   const [newOpPassword, setNewOpPassword] = useState('');
@@ -828,14 +828,17 @@ export default function App() {
   };
 
   // Filter & Search computation (Highly Secure: restricted to current operator's assigned tasks, while supervisors can oversee all)
-  const isManager = currentUser.role.includes('مدیر') || currentUser.role.includes('سوپروایزر') || currentUser.id === 'user_1';
-  const myTasks = isManager ? tasks : tasks.filter(task => task.assignedUsers.includes(currentUser.id));
+  const isManager = currentUser?.role?.includes('مدیر') || currentUser?.role?.includes('سوپروایزر') || currentUser?.id === 'user_1';
+  const myTasks = (tasks || []).filter(task => {
+    if (isManager) return true;
+    return task.assignedUsers?.includes(currentUser?.id);
+  });
 
   const filteredTasks = myTasks.filter(task => {
     // Search query matches title or description
     const textMatch = 
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      task.description.toLowerCase().includes(searchQuery.toLowerCase());
+      (task.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (task.description || '').toLowerCase().includes(searchQuery.toLowerCase());
 
     // Priority filter match
     const priorityMatch = filterPriority === 'all' || task.priority === filterPriority;
