@@ -15,6 +15,7 @@ import DatabaseControl from './components/DatabaseControl';
 import CalendarView from './components/CalendarView';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './firebase';
+import { checkMySQLStatus, fetchMySQLData, syncAllToMySQL } from './mysqlSync';
 import { 
   Plus, 
   Search, 
@@ -120,6 +121,114 @@ export default function App() {
         console.error("Firebase Anonymous Auth failed:", error);
       });
   }, []);
+
+  // MySQL / cPanel phpMyAdmin Synchronisation Engine
+  const [mysqlEnabled, setMysqlEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('callcenter_mysql_enabled') === 'true';
+  });
+  const [mysqlApiUrl, setMysqlApiUrl] = useState<string>(() => {
+    return localStorage.getItem('callcenter_mysql_api_url') || 'api.php';
+  });
+  const [mysqlStatus, setMysqlStatus] = useState<'connected' | 'error' | 'disconnected'>('disconnected');
+  const [mysqlInfo, setMysqlInfo] = useState<{ database?: string; host?: string; error?: string; hint?: string }>({});
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [hasStartedInitialLoad, setHasStartedInitialLoad] = useState<boolean>(false);
+
+  // Trigger manual or automatic test of MySQL status and data download
+  const handleCheckAndLoadMySQL = async () => {
+    setIsSyncing(true);
+    const status = await checkMySQLStatus(mysqlApiUrl);
+    if (status.connected) {
+      setMysqlStatus('connected');
+      setMysqlInfo({ database: status.database, host: status.host });
+      setMysqlEnabled(true);
+      localStorage.setItem('callcenter_mysql_enabled', 'true');
+
+      // Pull down real-time data from phpMyAdmin / MySQL
+      const dbData = await fetchMySQLData(mysqlApiUrl);
+      if (dbData.success && dbData.users && dbData.tasks && dbData.notifications) {
+        if (dbData.users.length > 0) {
+          setUsers(dbData.users);
+          // If logged out or current user is not in the db list, update currentUser
+          const found = dbData.users.find(u => u.id === currentUser.id);
+          if (!found) {
+            setCurrentUser(dbData.users[0]);
+          }
+        }
+        setTasks(dbData.tasks);
+        setNotifications(dbData.notifications);
+        triggerLocalToast({
+          title: 'اتصال موفق دیتابیس',
+          message: 'تمام اطلاعات با موفقیت از phpMyAdmin هاست بارگذاری شد.',
+          type: 'success'
+        });
+      }
+    } else {
+      setMysqlStatus('error');
+      setMysqlInfo({ error: status.error, hint: status.hint });
+      triggerLocalToast({
+        title: 'خطای پایگاه‌داده',
+        message: 'اسکریپت api.php روی هاست یافت نشد یا پیکربندی دیتابیس نادرست است.',
+        type: 'warning'
+      });
+    }
+    setIsSyncing(false);
+    setHasStartedInitialLoad(true);
+  };
+
+  // Run automatically on first launch
+  useEffect(() => {
+    const autoInit = async () => {
+      const status = await checkMySQLStatus(mysqlApiUrl);
+      if (status.connected) {
+        setMysqlStatus('connected');
+        setMysqlInfo({ database: status.database, host: status.host });
+        setMysqlEnabled(true);
+        localStorage.setItem('callcenter_mysql_enabled', 'true');
+
+        const dbData = await fetchMySQLData(mysqlApiUrl);
+        if (dbData.success && dbData.users && dbData.tasks && dbData.notifications) {
+          if (dbData.users.length > 0) {
+            setUsers(dbData.users);
+            const found = dbData.users.find(u => u.id === currentUser.id);
+            if (!found) {
+              setCurrentUser(dbData.users[0]);
+            }
+          } else {
+            // Seed database to host if empty
+            await syncAllToMySQL(mysqlApiUrl, { tasks, users, notifications });
+          }
+          if (dbData.tasks) setTasks(dbData.tasks);
+          if (dbData.notifications) setNotifications(dbData.notifications);
+        }
+      } else {
+        setMysqlStatus('disconnected');
+        setMysqlInfo({ error: status.error, hint: status.hint });
+      }
+      setHasStartedInitialLoad(true);
+    };
+    autoInit();
+  }, [mysqlApiUrl]);
+
+  // Debounced push state shifts to phpMyAdmin/MySQL
+  useEffect(() => {
+    if (!hasStartedInitialLoad || mysqlStatus !== 'connected' || !mysqlEnabled) return;
+
+    const debounceTimer = setTimeout(async () => {
+      setIsSyncing(true);
+      const res = await syncAllToMySQL(mysqlApiUrl, { tasks, users, notifications });
+      setIsSyncing(false);
+      if (res.success) {
+        setDbLastAction(`SYNC__${Date.now()}__mysql_success`);
+      } else {
+        console.warn("MySQL sync failed:", res.error);
+        setMysqlStatus('error');
+        setMysqlInfo(prev => ({ ...prev, error: res.error }));
+      }
+    }, 1200);
+
+    return () => clearTimeout(debounceTimer);
+  }, [tasks, users, notifications, mysqlStatus, mysqlEnabled, mysqlApiUrl, hasStartedInitialLoad]);
 
   // UI state
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -807,6 +916,14 @@ export default function App() {
           tasks={tasks}
           notifications={notifications}
           lastAction={dbLastAction}
+          mysqlEnabled={mysqlEnabled}
+          setMysqlEnabled={setMysqlEnabled}
+          mysqlApiUrl={mysqlApiUrl}
+          setMysqlApiUrl={setMysqlApiUrl}
+          mysqlStatus={mysqlStatus}
+          mysqlInfo={mysqlInfo}
+          isSyncing={isSyncing}
+          onManualSyncCheck={handleCheckAndLoadMySQL}
         />
 
         {/* 4. CHRONO DESK - INTERACTIVE VIEW TAB SWITCHER */}
