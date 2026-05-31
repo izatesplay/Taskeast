@@ -25,6 +25,7 @@ interface TaskCardProps {
   onDeleteTask: (id: string) => void;
   onMoveTask: (id: string, newStatus: any) => void;
   onDragStart: (e: any, taskId: string) => void;
+  isSupervisor?: boolean;
 }
 
 export default function TaskCard({ 
@@ -32,7 +33,8 @@ export default function TaskCard({
   onViewDetails, 
   onDeleteTask, 
   onMoveTask,
-  onDragStart 
+  onDragStart,
+  isSupervisor = false
 }: TaskCardProps) {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -238,13 +240,15 @@ export default function TaskCard({
           </button>
 
           {/* Delete Button */}
-          <button
-            onClick={() => setShowConfirmDelete(true)}
-            className="p-1 px-1.5 bg-slate-50 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/40 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-450 rounded border border-slate-200/40 dark:border-slate-700 transition-colors"
-            title="حذف تسک"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {isSupervisor && (
+            <button
+              onClick={() => setShowConfirmDelete(true)}
+              className="p-1 px-1.5 bg-slate-50 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/40 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-450 rounded border border-slate-200/40 dark:border-slate-700 transition-colors"
+              title="حذف تسک"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
       </div>

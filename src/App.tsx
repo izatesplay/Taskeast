@@ -838,6 +838,70 @@ export default function App() {
     }, 5000);
   };
 
+  // 1.8. Active Live Reminder Loop for Unread Operator Notifications every 5 minutes
+  const lastRemindedTimesRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    // Check every 10 seconds for any unread notifications that have not been reminded in the last 5 minutes
+    const reminderInterval = setInterval(() => {
+      const now = Date.now();
+      
+      notifications.forEach((notif) => {
+        // Only target unread notifications
+        if (notif.read) {
+          // Clean up if it was marked as read
+          if (lastRemindedTimesRef.current[notif.id]) {
+            delete lastRemindedTimesRef.current[notif.id];
+          }
+          return;
+        }
+
+        // Check user filter (only remind if targeted to the current active user)
+        const isTargetedToMe = !notif.targetUsers || notif.targetUsers.includes(currentUser?.id);
+        if (!isTargetedToMe) return;
+
+        // Obtain creation or first-seen time
+        let referenceTime = lastRemindedTimesRef.current[notif.id];
+        if (!referenceTime) {
+          // If first time encountering this notification, initialize reference time to now (so 5 mins start from now)
+          lastRemindedTimesRef.current[notif.id] = now;
+          return;
+        }
+
+        // 5 Minutes = 5 * 60 * 1000 = 300000 ms
+        if (now - referenceTime >= 300050) {
+          // Update reference time to now to schedule the next reminder 5 minutes from now
+          lastRemindedTimesRef.current[notif.id] = now;
+
+          // Re-trigger the toast/popup
+          triggerLocalToast({
+            title: `🔔 یادآوری خوانده نشده: ${notif.title}`,
+            message: notif.message,
+            type: notif.type || 'info'
+          });
+
+          // Play notification sound
+          playNotificationSound(notif.type || 'info');
+
+          // Browser native desktop notification popup (if permitted)
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            try {
+              new Notification(`🔔 یادآوری: ${notif.title}`, {
+                body: notif.message,
+                tag: notif.id + '_remind',
+                dir: 'rtl'
+              });
+            } catch (err) {
+              console.warn('Native desktop notification failure:', err);
+            }
+          }
+        }
+      });
+    }, 10000); // Poll/check once every 10 seconds for absolute reliability
+
+    return () => clearInterval(reminderInterval);
+  }, [notifications, currentUser?.id]);
+
   // Drag start handler - injects ID to transfer packet
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData('text/plain', taskId);
@@ -1044,6 +1108,15 @@ export default function App() {
     registerMutation();
     const task = tasks.find(t => t.id === id);
     if (!task) return;
+
+    if (!isSupervisor) {
+      triggerLocalToast({
+        title: 'عدم دسترسی کافی',
+        message: 'تنها سرپرست شیفت مجاز به کار حذف تسک‌ها می‌باشد.',
+        type: 'warning'
+      });
+      return;
+    }
 
     setTasks(prev => prev.filter(t => t.id !== id));
     setDbLastAction(`DELETE__${id}__remove`);
@@ -1487,6 +1560,7 @@ export default function App() {
               onMoveTask={handleMoveTask}
               onDragStart={handleDragStart}
               onDropTask={handleDropTask}
+              isSupervisor={isSupervisor}
             />
 
             <BoardColumn
@@ -1502,6 +1576,7 @@ export default function App() {
               onMoveTask={handleMoveTask}
               onDragStart={handleDragStart}
               onDropTask={handleDropTask}
+              isSupervisor={isSupervisor}
             />
 
             <BoardColumn
@@ -1517,6 +1592,7 @@ export default function App() {
               onMoveTask={handleMoveTask}
               onDragStart={handleDragStart}
               onDropTask={handleDropTask}
+              isSupervisor={isSupervisor}
             />
           </div>
         )}

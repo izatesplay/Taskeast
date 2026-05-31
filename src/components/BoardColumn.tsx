@@ -17,6 +17,7 @@ interface BoardColumnProps {
   onMoveTask: (id: string, newStatus: any) => void;
   onDragStart: (e: any, taskId: string) => void;
   onDropTask: (taskId: string, targetStatus: TaskStatus) => void;
+  isSupervisor?: boolean;
 }
 
 export default function BoardColumn({
@@ -29,6 +30,7 @@ export default function BoardColumn({
   onMoveTask,
   onDragStart,
   onDropTask,
+  isSupervisor = false
 }: BoardColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -119,6 +121,7 @@ export default function BoardColumn({
               onDeleteTask={onDeleteTask}
               onMoveTask={onMoveTask}
               onDragStart={onDragStart}
+              isSupervisor={isSupervisor}
             />
           ))
         ) : (
