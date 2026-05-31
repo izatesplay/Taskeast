@@ -31,6 +31,31 @@ const SHAMSI_MONTHS = [
 
 const WEEKDAYS_HEADER = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج']; // Saturday to Friday
 
+// Normalize Persian/Arabic digits, and split dates using varied delimiters (hyphen, slash, space)
+const normalizePersianDate = (dateStr: string | null | undefined): { year: number; month: number; day: number } | null => {
+  if (!dateStr) return null;
+  
+  const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
+  
+  let cleanStr = String(dateStr);
+  for (let i = 0; i < 10; i++) {
+    cleanStr = cleanStr.replace(persianDigits[i], String(i));
+  }
+  
+  // Split by hyphen, slash, dots, or spacing
+  const parts = cleanStr.split(/[-/._ ]+/);
+  if (parts.length >= 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    
+    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+      return { year, month, day };
+    }
+  }
+  return null;
+};
+
 export default function CalendarView({ tasks, onViewTask }: CalendarViewProps) {
   const [selectedMonthId, setSelectedMonthId] = useState<number>(3); // Default to Khordad 1405 where tasks live
   const [selectedDay, setSelectedDay] = useState<number>(10); // Default to 10th day
@@ -95,16 +120,12 @@ export default function CalendarView({ tasks, onViewTask }: CalendarViewProps) {
   const tasksByDay = useMemo(() => {
     const map: Record<number, Task[]> = {};
     (tasks || []).forEach(task => {
-      // Expect format 1405-XX-YY
-      const parts = (task.dueDate || '').split('-');
-      if (parts.length === 3) {
-        const year = parseInt(parts[0]);
-        const m = parseInt(parts[1]);
-        const d = parseInt(parts[2]);
-        
-        if (year === 1405 && m === selectedMonthId) {
-          if (!map[d]) map[d] = [];
-          map[d].push(task);
+      const normalized = normalizePersianDate(task.dueDate);
+      if (normalized) {
+        const { year, month, day } = normalized;
+        if (year === 1405 && month === selectedMonthId) {
+          if (!map[day]) map[day] = [];
+          map[day].push(task);
         }
       }
     });
@@ -143,9 +164,9 @@ export default function CalendarView({ tasks, onViewTask }: CalendarViewProps) {
     ];
 
     (tasks || []).forEach(task => {
-      const parts = (task.dueDate || '').split('-');
-      if (parts.length === 3 && parseInt(parts[0]) === 1405 && parseInt(parts[1]) === selectedMonthId) {
-        const d = parseInt(parts[2]);
+      const normalized = normalizePersianDate(task.dueDate);
+      if (normalized && normalized.year === 1405 && normalized.month === selectedMonthId) {
+        const d = normalized.day;
         const isUrgentOrHigh = task.priority === 'urgent' || task.priority === 'high';
         
         if (d >= 1 && d <= 7) {

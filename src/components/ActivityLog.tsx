@@ -122,16 +122,7 @@ export default function ActivityLog({ logs, onClearLogs, isManager }: ActivityLo
           </div>
         </div>
 
-        {onClearLogs && logs.length > 0 && (
-          <button
-            type="button"
-            onClick={onClearLogs}
-            className="px-4 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-900/40 rounded-xl text-xs font-bold shrink-0 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4" />
-            پاک کردن سوابق لاگ
-          </button>
-        )}
+        {/* Removed log clearing button to ensure absolute durability & protection of system audit logs */}
       </div>
 
       {/* Filter Bar Controls */}

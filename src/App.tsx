@@ -44,6 +44,12 @@ export default function App() {
   // Navigation & View Mode
   const [activeView, setActiveView] = useState<'landing' | 'board' | 'calendar'>('landing');
 
+  // Mutation tracking reference to prevent background polling from overwriting user changes (race condition prevention)
+  const lastMutationTimeRef = useRef<number>(0);
+  const registerMutation = () => {
+    lastMutationTimeRef.current = Date.now();
+  };
+
   // Core Data State (with localStorage persistence)
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('callcenter_users');
@@ -361,6 +367,9 @@ export default function App() {
   // 1.5. Iframe-Safe Polling Fallback for LocalStorage Collaboration (Syncs chat & task updates without page refresh)
   useEffect(() => {
     const rawPollInterval = setInterval(() => {
+      // Skip polling if there was a very recent local UI mutation
+      if (Date.now() - lastMutationTimeRef.current < 2500) return;
+
       // Check for tasks
       const rawTasks = localStorage.getItem('callcenter_tasks');
       if (rawTasks) {
@@ -409,8 +418,9 @@ export default function App() {
     if (!hasStartedInitialLoad || mysqlStatus !== 'connected' || !mysqlEnabled) return;
 
     const pollInterval = setInterval(async () => {
-      // Avoid polling if we are actively syncing/pushing data to server
+      // Avoid polling if we are actively syncing/pushing data to server or recently had a local edit
       if (isSyncing) return;
+      if (Date.now() - lastMutationTimeRef.current < 5000) return;
 
       try {
         const dbData = await fetchMySQLData(mysqlApiUrl);
@@ -835,6 +845,7 @@ export default function App() {
 
   // Drop card on column action
   const handleDropTask = (taskId: string, targetStatus: TaskStatus) => {
+    registerMutation();
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
@@ -901,6 +912,7 @@ export default function App() {
 
   // Task Creation and specs modification handler (supports real-time chat sync and file attachments)
   const handleTaskModalSubmit = (taskData: Omit<Task, 'id' | 'createdAt' | 'notes'> & { id?: string; notes?: Task['notes']; chatMessages?: Task['chatMessages'] }) => {
+    registerMutation();
     if (taskData.id) {
       // Edit mode
       const taskOriginal = tasks.find(t => t.id === taskData.id);
@@ -1029,6 +1041,7 @@ export default function App() {
 
   // Delete task completely
   const handleDeleteTask = (id: string) => {
+    registerMutation();
     const task = tasks.find(t => t.id === id);
     if (!task) return;
 
@@ -1096,6 +1109,7 @@ export default function App() {
   // Reset demo board to initial data state
   const handleResetDemoData = () => {
     if (confirm('آیا مایلید تمام تغییرات را حذف کرده و اطلاعات اولیه را بازنشانی کنید؟')) {
+      registerMutation();
       setTasks(initialTasks);
       setNotifications(initialNotifications);
       triggerLocalToast({
@@ -1520,7 +1534,6 @@ export default function App() {
         {activeView === 'activity' && isSupervisor && (
           <ActivityLog 
             logs={activityLogs}
-            onClearLogs={() => setActivityLogs([])}
             isManager={isSupervisor}
           />
         )}

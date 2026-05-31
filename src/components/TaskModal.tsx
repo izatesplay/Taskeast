@@ -22,7 +22,8 @@ import {
   Paperclip,
   Download,
   File,
-  Image
+  Image,
+  AlertCircle
 } from 'lucide-react';
 
 interface TaskModalProps {
@@ -42,6 +43,7 @@ export default function TaskModal({
 }: TaskModalProps) {
   const mockUsers = getDynamicUsers();
   const isEditMode = !!taskToEdit;
+  const canEditTitleAndDate = !taskToEdit ? true : (!taskToEdit.creatorId || taskToEdit.creatorId === currentUser.id);
   
   // Tab control for existing tasks: details/comments vs editing specifications
   const [activeTab, setActiveTab] = useState<'details' | 'edit'>('details');
@@ -464,16 +466,30 @@ export default function TaskModal({
               /* Edit or Create Mode Field Fields */
               <div className="space-y-4">
                 
+                {!canEditTitleAndDate && (
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl text-right flex items-center gap-2">
+                    <AlertCircle className="w-4.5 h-4.5 text-amber-500 shrink-0" />
+                    <span className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400 font-bold leading-relaxed">
+                      شما ایجادکننده این تسک نیستید؛ ویرایش عنوان و تاریخ سررسید غیرفعال است (فقط ایجادکننده تسک مجاز به ویرایش است).
+                    </span>
+                  </div>
+                )}
+                
                 {/* Field 1: Title */}
                 <div className="space-y-1 text-right">
                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 block">عنوان یادداشت تسک *</label>
                   <input
                     type="text"
                     required
+                    disabled={!canEditTitleAndDate}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="مثلاً: پیگیری تماس گله‌مندی تاخیر ارسال فاکتور"
-                    className="w-full text-xs p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-1 focus:ring-purple-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-800 dark:text-slate-100"
+                    className={`w-full text-xs p-3 border rounded-xl focus:ring-1 focus:ring-purple-500 outline-none ${
+                      !canEditTitleAndDate 
+                        ? 'bg-slate-100 dark:bg-slate-900/60 text-slate-400 dark:text-slate-500 cursor-not-allowed border-slate-200 dark:border-slate-800' 
+                        : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900'
+                    }`}
                   />
                 </div>
 
@@ -526,10 +542,15 @@ export default function TaskModal({
                     <div className="relative">
                       <input
                         type="text"
+                        disabled={!canEditTitleAndDate}
                         value={dueDate}
                         onChange={(e) => setDueDate(e.target.value)}
                         placeholder="مثال: ۱۴۰۵-۰۳-۱۰"
-                        className="w-full text-xs p-3 pr-10 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-1 focus:ring-purple-500 outline-none font-mono text-slate-800 dark:text-slate-100"
+                        className={`w-full text-xs p-3 pr-10 border rounded-xl focus:ring-1 focus:ring-purple-500 outline-none font-mono ${
+                          !canEditTitleAndDate 
+                            ? 'bg-slate-100 dark:bg-slate-900/60 text-slate-400 dark:text-slate-500 cursor-not-allowed border-slate-200 dark:border-slate-800'
+                            : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900'
+                        }`}
                       />
                       <Calendar className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5 pointer-events-none" />
                     </div>

@@ -170,6 +170,7 @@ switch ($action) {
         while($row = $res->fetch_assoc()) {
             $row['read'] = (bool)$row['read_status'];
             unset($row['read_status']);
+            $row['createdAt'] = $row['time']; // Map MySQL 'time' back to 'createdAt' for TypeScript app
             $notifications[] = $row;
         }
 
@@ -226,7 +227,7 @@ switch ($action) {
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON DUPLICATE KEY UPDATE title=?, description=?, category=?, status=?, priority=?, dueDate=?, progress=?, estimatedHours=?, actualHours=?, assignedUsers=?, authorId=?, chatMessages=?, attachments=?, createdAt=?, updatedAt=?");
                     
-                    $stmt->bind_param("sssssssidssssssssssssidssssssss", 
+                    $stmt->bind_param("sssssssssssssssssssssssssssssss", 
                         $t['id'], $t['title'], $t['description'], $t['category'], $t['status'], $t['priority'], $t['dueDate'], $t['progress'], $t['estimatedHours'], $t['actualHours'], $assigned, $t['authorId'], $chats, $attachments, $t['createdAt'], $t['updatedAt'],
                         $t['title'], $t['description'], $t['category'], $t['status'], $t['priority'], $t['dueDate'], $t['progress'], $t['estimatedHours'], $t['actualHours'], $assigned, $t['authorId'], $chats, $attachments, $t['createdAt'], $t['updatedAt']
                     );
@@ -246,10 +247,11 @@ switch ($action) {
 
                 foreach ($input['notifications'] as $n) {
                     $read_status = isset($n['read']) && $n['read'] ? 1 : 0;
+                    $time = isset($n['createdAt']) ? $n['createdAt'] : (isset($n['time']) ? $n['time'] : '');
                     $stmt = $conn->prepare("INSERT INTO `notifications` (id, title, message, type, time, read_status) VALUES (?, ?, ?, ?, ?, ?)
                         ON DUPLICATE KEY UPDATE title=?, message=?, type=?, time=?, read_status=?");
-                    $stmt->bind_param("sssssisssi", $n['id'], $n['title'], $n['message'], $n['type'], $n['time'], $read_status,
-                        $n['title'], $n['message'], $n['type'], $n['time'], $read_status);
+                    $stmt->bind_param("sssssssssss", $n['id'], $n['title'], $n['message'], $n['type'], $time, $read_status,
+                        $n['title'], $n['message'], $n['type'], $time, $read_status);
                     $stmt->execute();
                     $stmt->close();
                 }
