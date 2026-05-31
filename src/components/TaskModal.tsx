@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Task, TaskPriority, TaskStatus, User, Note, ChatMessage } from '../types';
+import { Task, TaskPriority, TaskStatus, User, Note, ChatMessage, TaskAlarm } from '../types';
 import { getDynamicUsers } from '../mockData';
 import { 
   X, 
@@ -23,13 +23,14 @@ import {
   Download,
   File,
   Image,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (taskData: Omit<Task, 'id' | 'createdAt' | 'notes'> & { id?: string; notes?: Note[]; chatMessages?: ChatMessage[] }) => void;
+  onSubmit: (taskData: Omit<Task, 'id' | 'createdAt' | 'notes'> & { id?: string; notes?: Note[]; chatMessages?: ChatMessage[]; alarms?: TaskAlarm[] }) => void;
   taskToEdit?: Task | null;
   currentUser: User;
 }
@@ -46,7 +47,15 @@ export default function TaskModal({
   const canEditTitleAndDate = !taskToEdit ? true : (!taskToEdit.creatorId || taskToEdit.creatorId === currentUser.id);
   
   // Tab control for existing tasks: details/comments vs editing specifications
-  const [activeTab, setActiveTab] = useState<'details' | 'edit'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'alarms' | 'edit'>('details');
+
+  // Alarm Timers states
+  const [alarms, setAlarms] = useState<TaskAlarm[]>([]);
+  const [alarmTargetUserId, setAlarmTargetUserId] = useState(currentUser.id);
+  const [alarmNote, setAlarmNote] = useState('');
+  const [alarmMode, setAlarmMode] = useState<'preset' | 'custom'>('preset');
+  const [alarmMinutesPreset, setAlarmMinutesPreset] = useState('5'); // default 5 minutes
+  const [alarmCustomDateTime, setAlarmCustomDateTime] = useState(''); // manually-picked date/time format YYYY-MM-DDTHH:MM
 
   // Form states
   const [title, setTitle] = useState('');
@@ -85,6 +94,7 @@ export default function TaskModal({
       setPriority(taskToEdit.priority);
       setAssignedUsers(taskToEdit.assignedUsers);
       setDueDate(taskToEdit.dueDate);
+      setAlarms(taskToEdit.alarms || []);
       setActiveTab('details');
     } else {
       setTitle('');
@@ -94,11 +104,17 @@ export default function TaskModal({
       setAssignedUsers([currentUser.id]);
       // Default due date to roughly 7 days from now
       setDueDate('1405-03-15');
+      setAlarms([]);
       setActiveTab('edit');
     }
     setChatText('');
     setAttachedFile(null);
     setIsTyping(false);
+    setAlarmTargetUserId(currentUser.id);
+    setAlarmNote('');
+    setAlarmMode('preset');
+    setAlarmMinutesPreset('5');
+    setAlarmCustomDateTime('');
   }, [taskToEdit, isOpen]);
 
   if (!isOpen) return null;
@@ -110,6 +126,69 @@ export default function TaskModal({
         ? prev.filter((id) => id !== userId)
         : [...prev, userId]
     );
+  };
+
+  const isSupervisor = currentUser?.role === 'مدیر شیفت کالسنتر' || currentUser?.role?.includes('سرپرست') || currentUser?.role?.includes('سوپروایزر') || currentUser?.id === 'user_1' || currentUser?.id === 'user_admin';
+
+  const formatAlarmTime = (isoString: string) => {
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return isoString;
+      return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }) + ' - ' + d.toLocaleDateString('fa-IR');
+    } catch (e) {
+      return isoString;
+    }
+  };
+
+  const handleAddAlarm = () => {
+    let calculatedTime: Date;
+    if (alarmMode === 'preset') {
+      const minutes = parseInt(alarmMinutesPreset, 10);
+      calculatedTime = new Date(Date.now() + minutes * 60 * 1000);
+    } else {
+      if (!alarmCustomDateTime) {
+        alert('لطفا تاریخ و زمان دستی برای هشدار را انتخاب کنید.');
+        return;
+      }
+      calculatedTime = new Date(alarmCustomDateTime);
+      if (isNaN(calculatedTime.getTime())) {
+        alert('زمان انتخابی نامعتبر است.');
+        return;
+      }
+    }
+
+    const matchedUser = mockUsers.find(u => u.id === alarmTargetUserId);
+    if (!matchedUser) return;
+
+    const freshAlarm: TaskAlarm = {
+      id: 'alarm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      targetUserId: alarmTargetUserId,
+      targetUserName: matchedUser.name,
+      triggerTime: calculatedTime.toISOString(),
+      note: alarmNote.trim() || undefined,
+      triggered: false,
+      createdAt: new Date().toISOString(),
+      creatorId: currentUser.id,
+      creatorName: currentUser.name,
+    };
+
+    const updatedAlarms = [...alarms, freshAlarm];
+    setAlarms(updatedAlarms);
+    setAlarmNote('');
+    
+    onSubmit({
+      ...taskToEdit!,
+      alarms: updatedAlarms
+    });
+  };
+
+  const handleRemoveAlarm = (alarmId: string) => {
+    const updatedAlarms = alarms.filter(a => a.id !== alarmId);
+    setAlarms(updatedAlarms);
+    onSubmit({
+      ...taskToEdit!,
+      alarms: updatedAlarms
+    });
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -129,6 +208,7 @@ export default function TaskModal({
       dueDate,
       notes: taskToEdit ? taskToEdit.notes : [],
       chatMessages: messages,
+      alarms: alarms,
     });
 
     onClose();
@@ -354,12 +434,12 @@ export default function TaskModal({
 
         {/* Core Form Section for creating or specifications edit */}
         <div className="flex-1 flex flex-col justify-between max-h-[85vh] md:max-h-[90vh] overflow-y-auto">
-          {/* Modal Header */}
+          {/* modal Header */}
           <div className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-slate-50/20 dark:bg-slate-900/10">
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100">
                 {isEditMode 
-                  ? (activeTab === 'edit' ? 'ویرایش مشخصات وظیفه' : 'جزئیات کار و اطلاعات تماسی') 
+                  ? (activeTab === 'edit' ? 'ویرایش مشخصات وظیفه' : activeTab === 'alarms' ? 'تنظیم یادآوری و آلارم تماس' : 'جزئیات کار و اطلاعات تماسی') 
                   : 'ایجاد تسک جدید برای کالسنتر'}
               </h2>
               <p className="text-[10px] text-slate-400 mt-0.5">ثبت گزارش کار کادر پاسخگویی مرکز تماس</p>
@@ -375,7 +455,7 @@ export default function TaskModal({
 
           {/* Edit / Details Toggle tabs for editing tasks */}
           {isEditMode && (
-            <div className="px-6 pt-3 flex border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/10 gap-4">
+            <div className="px-6 pt-3 flex border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/10 gap-3 sm:gap-4 overflow-x-auto text-nowrap">
               <button
                 type="button"
                 onClick={() => setActiveTab('details')}
@@ -386,6 +466,17 @@ export default function TaskModal({
                 }`}
               >
                 💬 چت درون‌برنامه‌ای و گزارش کار
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('alarms')}
+                className={`pb-2.5 text-xs font-bold transition-all border-b-2 px-1 cursor-pointer ${
+                  activeTab === 'alarms'
+                    ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                ⏰ تایمر هشدار و آلارم
               </button>
               <button
                 type="button"
@@ -405,7 +496,7 @@ export default function TaskModal({
           <form onSubmit={handleFormSubmit} className="p-6 space-y-4 flex-grow">
             
             {/* View Only Mode (when viewing details of existing task) */}
-            {isEditMode && activeTab === 'details' ? (
+            {isEditMode && activeTab === 'details' && (
               <div className="space-y-4 text-right">
                 <div className="space-y-1">
                   <span className="text-[11px] text-slate-400 font-bold block">عنوان وظیفه:</span>
@@ -462,7 +553,195 @@ export default function TaskModal({
                   </div>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {isEditMode && activeTab === 'alarms' && (
+              <div className="space-y-5 text-right">
+                {/* Alert notification banner explaining permission boundaries */}
+                <div className="p-3 bg-purple-500/10 border border-purple-500/25 rounded-2xl flex items-center gap-2">
+                  <BellRing className="w-5 h-5 text-purple-500 shrink-0 animate-bounce" />
+                  <div>
+                    <p className="text-xs font-bold text-purple-700 dark:text-purple-400">سیستم هوشمند آلارم و هشدار یادآوری تماس</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">در زمان تعیین شده، سیستم شروع به پخش صدای آلارم کرده و پاپ‌آپ اخطار را به اپراتور نمایش می‌دهد.</p>
+                  </div>
+                </div>
+
+                {/* Section: Create Alarm Timer Form */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3.5">
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">🚀 تنظیم تایمر آلارم جدید</h3>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Field 1: Target User */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-500 mr-1 block">کاربر هدف آلارم *</label>
+                      {isSupervisor ? (
+                        <select
+                          value={alarmTargetUserId}
+                          onChange={(e) => setAlarmTargetUserId(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-purple-500 outline-none text-slate-800 dark:text-slate-100"
+                        >
+                          {mockUsers.map(u => (
+                            <option key={u.id} value={u.id}>
+                              {u.name} ({u.role})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="w-full text-xs p-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-xl">
+                          {currentUser.name} (یادآور برای خودم)
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Field 2: Mode Toggle */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-500 mr-1 block">نوع زمان‌بندی زنگ *</label>
+                      <div className="grid grid-cols-2 gap-2 bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-700 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => setAlarmMode('preset')}
+                          className={`py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                            alarmMode === 'preset'
+                              ? 'bg-purple-600 text-white shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                          }`}
+                        >
+                          ⏱️ تایمر سریع (دقیقه)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAlarmMode('custom')}
+                          className={`py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                            alarmMode === 'custom'
+                              ? 'bg-purple-600 text-white shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                          }`}
+                        >
+                          📅 تاریخ و ساعت دستی
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Conditional Time Pickers */}
+                  {alarmMode === 'preset' ? (
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-500 mr-1 block">زمان زنگ هشدار (سریع) *</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: '🟢 ۱ دقیقه (تست زنده)', value: '1' },
+                          { label: '⏱️ ۵ دقیقه', value: '5' },
+                          { label: '⏱️ ۱۵ دقیقه', value: '15' },
+                          { label: '⏱️ ۳۰ دقیقه', value: '30' },
+                          { label: '⏱️ ۱ ساعت', value: '60' },
+                          { label: '⏱️ ۲ ساعت', value: '120' },
+                        ].map(preset => (
+                          <button
+                            type="button"
+                            key={preset.value}
+                            onClick={() => setAlarmMinutesPreset(preset.value)}
+                            className={`px-2.5 py-1.5 text-[10px] font-bold rounded-xl transition-all border cursor-pointer ${
+                              alarmMinutesPreset === preset.value
+                                ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-500 text-purple-700 dark:text-purple-300 font-extrabold'
+                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-500 mr-1 block">انتخاب دقیق تاریخ و زمان آلارم *</label>
+                      <input
+                        type="datetime-local"
+                        value={alarmCustomDateTime}
+                        onChange={(e) => setAlarmCustomDateTime(e.target.value)}
+                        className="text-right w-full text-xs p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-purple-500 outline-none font-mono text-slate-800 dark:text-slate-100"
+                      />
+                    </div>
+                  )}
+
+                  {/* Alarm Note Description */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-500 mr-1 block">جزئیات تماس یا پیام یادآور آلارم</label>
+                    <input
+                      type="text"
+                      value={alarmNote}
+                      onChange={(e) => setAlarmNote(e.target.value)}
+                      placeholder="مثلاً: پیگیری تماس فوری با شماره مشتری، چک کردن وضعیت پاسخ و..."
+                      className="w-full text-xs p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-purple-500 outline-none text-slate-800 dark:text-slate-100"
+                    />
+                  </div>
+
+                  {/* Button to Submit Alarm */}
+                  <button
+                    type="button"
+                    onClick={handleAddAlarm}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Clock className="w-4 h-4 ml-1" />
+                    ثبت و فعال‌سازی تایمر هشدار
+                  </button>
+                </div>
+
+                {/* Section: Active Alarm List */}
+                <div className="space-y-2.5">
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">📋 آلارم‌های تنظیم شده مانیتورینگ ({alarms.length})</h3>
+                  <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1">
+                    {alarms.length > 0 ? (
+                      alarms.map((alarm) => {
+                        const hasPrivilege = isSupervisor || alarm.creatorId === currentUser.id;
+                        return (
+                          <div 
+                            key={alarm.id} 
+                            className={`p-3 rounded-2xl border text-right flex items-center justify-between gap-3 ${
+                              alarm.triggered 
+                                ? 'bg-slate-50 dark:bg-slate-950/20 border-slate-200/50 dark:border-slate-800/80 text-slate-400'
+                                : 'bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20 text-slate-800 dark:text-slate-100'
+                            }`}
+                          >
+                            <div className="space-y-1 overflow-hidden flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {alarm.triggered ? (
+                                  <span className="text-[8px] bg-slate-200 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded-sm font-bold">زنگ خورده / آرشیو</span>
+                                ) : (
+                                  <span className="text-[8px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-sm font-bold animate-pulse">● فعال در انتظار پخش</span>
+                                )}
+                                <span className="text-[10px] text-slate-400">برای کارمند: <b>{alarm.targetUserName}</b></span>
+                              </div>
+                              <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 font-mono" dir="ltr">زمان: {formatAlarmTime(alarm.triggerTime)}</p>
+                              {alarm.note && (
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">سناریو/پیام: {alarm.note}</p>
+                              )}
+                              <p className="text-[8px] text-slate-400 italic">سازنده: {alarm.creatorName}</p>
+                            </div>
+
+                            {hasPrivilege && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveAlarm(alarm.id)}
+                                className="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-200/30 dark:border-rose-900/30 rounded-xl cursor-pointer transition-colors shrink-0"
+                                title="حذف یادآوری"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50 dark:bg-slate-950/10 rounded-2xl border border-slate-100 dark:border-slate-850">
+                        ⏳ هشداری برای این کار ثبت نشده است. از بالا بیفزایید.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(!isEditMode || activeTab === 'edit') && (
               /* Edit or Create Mode Field Fields */
               <div className="space-y-4">
                 

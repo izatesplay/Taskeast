@@ -98,6 +98,7 @@ $tables_sql = [
         `authorId` VARCHAR(50) NULL,
         `chatMessages` TEXT NULL, -- JSON formatted array
         `attachments` TEXT NULL, -- JSON formatted array
+        `alarms` TEXT NULL, -- JSON formatted array
         `createdAt` VARCHAR(50) NULL,
         `updatedAt` VARCHAR(50) NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
@@ -116,6 +117,12 @@ foreach ($tables_sql as $name => $query) {
     if (!$conn->query($query)) {
         respondJSON("error", "خطا در ایجاد جدول $name: " . $conn->error);
     }
+}
+
+// Automatically add column `alarms` if users have an existing `tasks` table without it
+$checkColumn = $conn->query("SHOW COLUMNS FROM `tasks` LIKE 'alarms'");
+if ($checkColumn && $checkColumn->num_rows == 0) {
+    $conn->query("ALTER TABLE `tasks` ADD COLUMN `alarms` TEXT NULL AFTER `attachments`;");
 }
 
 // Seed admin user on clean install so user can sign in
@@ -159,6 +166,7 @@ switch ($action) {
             $row['assignedUsers'] = json_decode($row['assignedUsers'] ?: '[]', true);
             $row['chatMessages'] = json_decode($row['chatMessages'] ?: '[]', true);
             $row['attachments'] = json_decode($row['attachments'] ?: '[]', true);
+            $row['alarms'] = json_decode(isset($row['alarms']) ? ($row['alarms'] ?: '[]') : '[]', true);
             $row['progress'] = (int)$row['progress'];
             $row['estimatedHours'] = (float)$row['estimatedHours'];
             $row['actualHours'] = (float)$row['actualHours'];
@@ -222,14 +230,15 @@ switch ($action) {
                     $assigned = json_encode($t['assignedUsers'] ?: [], JSON_UNESCAPED_UNICODE);
                     $chats = json_encode($t['chatMessages'] ?: [], JSON_UNESCAPED_UNICODE);
                     $attachments = json_encode($t['attachments'] ?: [], JSON_UNESCAPED_UNICODE);
+                    $alarms = json_encode(isset($t['alarms']) ? $t['alarms'] : [], JSON_UNESCAPED_UNICODE);
                     
-                    $stmt = $conn->prepare("INSERT INTO `tasks` (id, title, description, category, status, priority, dueDate, progress, estimatedHours, actualHours, assignedUsers, authorId, chatMessages, attachments, createdAt, updatedAt) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON DUPLICATE KEY UPDATE title=?, description=?, category=?, status=?, priority=?, dueDate=?, progress=?, estimatedHours=?, actualHours=?, assignedUsers=?, authorId=?, chatMessages=?, attachments=?, createdAt=?, updatedAt=?");
+                    $stmt = $conn->prepare("INSERT INTO `tasks` (id, title, description, category, status, priority, dueDate, progress, estimatedHours, actualHours, assignedUsers, authorId, chatMessages, attachments, alarms, createdAt, updatedAt) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE title=?, description=?, category=?, status=?, priority=?, dueDate=?, progress=?, estimatedHours=?, actualHours=?, assignedUsers=?, authorId=?, chatMessages=?, attachments=?, alarms=?, createdAt=?, updatedAt=?");
                     
-                    $stmt->bind_param("sssssssssssssssssssssssssssssss", 
-                        $t['id'], $t['title'], $t['description'], $t['category'], $t['status'], $t['priority'], $t['dueDate'], $t['progress'], $t['estimatedHours'], $t['actualHours'], $assigned, $t['authorId'], $chats, $attachments, $t['createdAt'], $t['updatedAt'],
-                        $t['title'], $t['description'], $t['category'], $t['status'], $t['priority'], $t['dueDate'], $t['progress'], $t['estimatedHours'], $t['actualHours'], $assigned, $t['authorId'], $chats, $attachments, $t['createdAt'], $t['updatedAt']
+                    $stmt->bind_param("sssssssssssssssssssssssssssssssss", 
+                        $t['id'], $t['title'], $t['description'], $t['category'], $t['status'], $t['priority'], $t['dueDate'], $t['progress'], $t['estimatedHours'], $t['actualHours'], $assigned, $t['authorId'], $chats, $attachments, $alarms, $t['createdAt'], $t['updatedAt'],
+                        $t['title'], $t['description'], $t['category'], $t['status'], $t['priority'], $t['dueDate'], $t['progress'], $t['estimatedHours'], $t['actualHours'], $assigned, $t['authorId'], $chats, $attachments, $alarms, $t['createdAt'], $t['updatedAt']
                     );
                     $stmt->execute();
                     $stmt->close();

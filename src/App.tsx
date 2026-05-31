@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Task, TaskStatus, TaskPriority, User, Notification as AppNotification } from './types';
+import { Task, TaskStatus, TaskPriority, User, Notification as AppNotification, TaskAlarm } from './types';
 import { mockUsers, initialTasks, initialNotifications } from './mockData';
 import LandingPage from './components/LandingPage';
 import BoardColumn from './components/BoardColumn';
@@ -841,6 +841,111 @@ export default function App() {
   // 1.8. Active Live Reminder Loop for Unread Operator Notifications every 5 minutes
   const lastRemindedTimesRef = useRef<Record<string, number>>({});
 
+  // 1.9. Task Alarm Timers State & Audio Loop
+  const [triggeredAlarm, setTriggeredAlarm] = useState<{ task: Task; alarm: TaskAlarm } | null>(null);
+
+  const playContinuousAlarmSound = () => {
+    if (!soundEnabled) return;
+    try {
+      // @ts-ignore
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      
+      const duration = 0.6;
+      const now = ctx.currentTime;
+      
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(580, now);
+      osc1.frequency.linearRampToValueAtTime(740, now + 0.1);
+      osc1.frequency.linearRampToValueAtTime(580, now + 0.2);
+      osc1.frequency.linearRampToValueAtTime(740, now + 0.3);
+      osc1.frequency.linearRampToValueAtTime(580, now + 0.4);
+      osc1.frequency.linearRampToValueAtTime(740, now + 0.5);
+      
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(440, now);
+      
+      gainNode.gain.setValueAtTime(0.08, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc1.start();
+      osc2.start();
+      osc1.stop(now + duration);
+      osc2.stop(now + duration);
+    } catch (e) {
+      console.warn('Alarm sound play aborted/failed:', e);
+    }
+  };
+
+  // Ring repeating chime every 1.2s when alarm is active
+  useEffect(() => {
+    if (!triggeredAlarm) return;
+    playContinuousAlarmSound();
+    const ringingTimer = setInterval(() => {
+      playContinuousAlarmSound();
+    }, 1200);
+    return () => clearInterval(ringingTimer);
+  }, [triggeredAlarm, soundEnabled]);
+
+  // Periodic scanner checks every 3 seconds for active task timers
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const checkerTimer = setInterval(() => {
+      if (triggeredAlarm) return; // Wait until present alert is resolved
+      
+      let matchedPair: { task: Task; alarm: TaskAlarm } | null = null;
+      
+      const updatedTasks = tasks.map((task) => {
+        if (!task.alarms || task.alarms.length === 0) return task;
+        
+        let modified = false;
+        const mappedAlarms = task.alarms.map((alarm) => {
+          const nowMs = Date.now();
+          const targetMs = new Date(alarm.triggerTime).getTime();
+          
+          if (!alarm.triggered && targetMs <= nowMs && alarm.targetUserId === currentUser.id) {
+            matchedPair = { task, alarm };
+            modified = true;
+            return { ...alarm, triggered: true };
+          }
+          return alarm;
+        });
+        
+        if (modified) {
+          return { ...task, alarms: mappedAlarms };
+        }
+        return task;
+      });
+      
+      if (matchedPair) {
+        setTasks(updatedTasks);
+        setTriggeredAlarm(matchedPair);
+        
+        triggerLocalToast({
+          title: `🔔 آلارم زمانی: ${matchedPair.task.title}`,
+          message: matchedPair.alarm.note || 'زمان یادآوری پیگیری تسک فرارسیده است.',
+          type: 'urgent'
+        });
+      }
+    }, 3000);
+    
+    return () => clearInterval(checkerTimer);
+  }, [tasks, currentUser, triggeredAlarm]);
+
+  const handleAcknowledgeAlarm = () => {
+    setTriggeredAlarm(null);
+  };
+
   useEffect(() => {
     // Check every 10 seconds for any unread notifications that have not been reminded in the last 5 minutes
     const reminderInterval = setInterval(() => {
@@ -975,7 +1080,7 @@ export default function App() {
   };
 
   // Task Creation and specs modification handler (supports real-time chat sync and file attachments)
-  const handleTaskModalSubmit = (taskData: Omit<Task, 'id' | 'createdAt' | 'notes'> & { id?: string; notes?: Task['notes']; chatMessages?: Task['chatMessages'] }) => {
+  const handleTaskModalSubmit = (taskData: Omit<Task, 'id' | 'createdAt' | 'notes'> & { id?: string; notes?: Task['notes']; chatMessages?: Task['chatMessages']; alarms?: Task['alarms'] }) => {
     registerMutation();
     if (taskData.id) {
       // Edit mode
@@ -993,7 +1098,8 @@ export default function App() {
             assignedUsers: taskData.assignedUsers,
             dueDate: taskData.dueDate,
             notes: taskData.notes || [],
-            chatMessages: taskData.chatMessages || []
+            chatMessages: taskData.chatMessages || [],
+            alarms: taskData.alarms || t.alarms || [],
           };
         }
         return t;
@@ -1633,6 +1739,83 @@ export default function App() {
         taskToEdit={tasks.find(t => t.id === taskToEdit?.id) || taskToEdit}
         currentUser={currentUser}
       />
+      
+      {/* Dynamic Alarm Alert Overlay */}
+      {triggeredAlarm && (
+        <div 
+          id="alarm-triggered-overlay" 
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] text-right animate-fade-in" 
+          style={{ direction: 'rtl' }}
+        >
+          <div className="bg-white dark:bg-slate-900 border-2 border-rose-500 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl shadow-rose-500/30 flex flex-col animate-in fade-in zoom-in-95 duration-250">
+            {/* Pulsing Alarm Header */}
+            <div className="p-6 bg-rose-500 text-white flex flex-col items-center justify-center text-center relative overflow-hidden shrink-0">
+              <div className="absolute inset-0 bg-rose-600 opacity-20 animate-ping rounded-full scale-110"></div>
+              
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white mb-3 animate-bounce shadow-inner">
+                <PhoneCall className="w-8 h-8 text-white" />
+              </div>
+              
+              <h3 className="text-lg sm:text-xl font-black tracking-tight">🚨 زنگ یادآوری و هشدار فوری تماس!</h3>
+              <p className="text-xs text-rose-100 mt-1 font-medium">زمان مقرر برای پیگیری تماس یا تسک وارد شده فرا رسیده است</p>
+            </div>
+
+            {/* Alarm Content Body */}
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[50vh]">
+              <div className="space-y-1">
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block">موضوع یادداشت تسک:</span>
+                <p className="text-sm font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/20 p-3.5 rounded-2xl border border-rose-100 dark:border-rose-900/20">
+                  {triggeredAlarm.task.title}
+                </p>
+              </div>
+
+              {triggeredAlarm.task.description && (
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block">توضیحات / سناریو ثبت شده:</span>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800 max-h-24 overflow-y-auto whitespace-pre-line leading-relaxed">
+                    {triggeredAlarm.task.description}
+                  </p>
+                </div>
+              )}
+
+              {triggeredAlarm.alarm.note && (
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block">پیام هشدار تایمر:</span>
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-100 bg-amber-500/10 p-3.5 rounded-xl border border-amber-500/20 flex items-start gap-1.5 leading-relaxed">
+                    <span>💡</span>
+                    <span>{triggeredAlarm.alarm.note}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Date Metadata */}
+              <div className="grid grid-cols-2 gap-2 text-center text-[10px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                <div className="bg-slate-50 dark:bg-slate-950/20 p-2 rounded-xl">
+                  <span className="block text-slate-400 mb-0.5">ثبت کننده یادآوری</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">{triggeredAlarm.alarm.creatorName}</span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-950/20 p-2 rounded-xl">
+                  <span className="block text-slate-400 mb-0.5">زمان مقرر هشدار</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300 font-mono" dir="ltr">
+                    {new Date(triggeredAlarm.alarm.triggerTime).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Acknowledge Action Button */}
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 shrink-0">
+              <button
+                type="button"
+                onClick={handleAcknowledgeAlarm}
+                className="w-full py-3.5 bg-rose-600 hover:bg-rose-700 active:scale-98 text-white font-extrabold rounded-2xl text-xs sm:text-sm tracking-tight shadow-lg shadow-rose-600/30 hover:shadow-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                🔕 متوجه شدم / قطع صدای زنگ هشدار
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Shift summary report and PDF printer modal */}
       <ShiftReportModal

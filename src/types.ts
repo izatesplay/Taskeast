@@ -24,6 +24,18 @@ export interface Note {
   createdAt: string; // ISO timestamp or formatted
 }
 
+export interface TaskAlarm {
+  id: string;
+  targetUserId: string;
+  targetUserName: string;
+  triggerTime: string; // ISO string representing when to alert
+  note?: string;
+  triggered?: boolean;
+  createdAt: string;
+  creatorId: string;
+  creatorName: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -37,6 +49,7 @@ export interface Task {
   chatMessages?: ChatMessage[]; // Real-time chat messages
   creatorId?: string;
   creatorName?: string;
+  alarms?: TaskAlarm[]; // Alert triggers/timers set by users or supervisors
 }
 
 export interface ChatMessage {
