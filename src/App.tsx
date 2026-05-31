@@ -138,7 +138,7 @@ export default function App() {
           initials: 'سر'
         },
         type: 'creation',
-        details: 'بلیت کار جدید با اولویت فوری ثبت گردید',
+        details: 'تسک کار جدید با اولویت فوری ثبت گردید',
         timestamp: new Date(Date.now() - 3600000 * 5).toISOString()
       }
     ];
@@ -356,6 +356,52 @@ export default function App() {
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
+  }, [tasks, notifications, users]);
+
+  // 1.5. Iframe-Safe Polling Fallback for LocalStorage Collaboration (Syncs chat & task updates without page refresh)
+  useEffect(() => {
+    const rawPollInterval = setInterval(() => {
+      // Check for tasks
+      const rawTasks = localStorage.getItem('callcenter_tasks');
+      if (rawTasks) {
+        try {
+          const parsed = JSON.parse(rawTasks);
+          if (JSON.stringify(parsed) !== JSON.stringify(tasks)) {
+            setTasks(parsed);
+          }
+        } catch (e) {
+          console.warn("Storage Sync Poll failed for tasks", e);
+        }
+      }
+      
+      // Check for notifications
+      const rawNotifs = localStorage.getItem('callcenter_notifications');
+      if (rawNotifs) {
+        try {
+          const parsed = JSON.parse(rawNotifs);
+          if (JSON.stringify(parsed) !== JSON.stringify(notifications)) {
+            setNotifications(parsed);
+          }
+        } catch (e) {
+          console.warn("Storage Sync Poll failed for notifications", e);
+        }
+      }
+
+      // Check for users
+      const rawUsers = localStorage.getItem('callcenter_users');
+      if (rawUsers) {
+        try {
+          const parsed = JSON.parse(rawUsers);
+          if (JSON.stringify(parsed) !== JSON.stringify(users)) {
+            setUsers(parsed);
+          }
+        } catch (e) {
+          console.warn("Storage Sync Poll failed for users", e);
+        }
+      }
+    }, 1000); // Polling every 1 second ensures near-instantaneous live chat updates
+
+    return () => clearInterval(rawPollInterval);
   }, [tasks, notifications, users]);
 
   // 2. Background Polling Engine for cPanel / phpMyAdmin Live Database Synchronization
@@ -595,6 +641,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('callcenter_user', JSON.stringify(currentUser));
   }, [currentUser]);
+
+  useEffect(() => {
+    localStorage.setItem('callcenter_users', JSON.stringify(users));
+  }, [users]);
 
   // Sync body theme classes
   useEffect(() => {
@@ -917,7 +967,7 @@ export default function App() {
             initials: currentUser.initials
           },
           type: 'edit',
-          details: 'مشخصات و جزییات بلیت با موفقیت به‌روزرسانی گردید',
+          details: 'مشخصات و جزییات تسک با موفقیت به‌روزرسانی گردید',
           timestamp: new Date().toISOString()
         };
         setActivityLogs(prev => [newEditLog, ...prev]);
@@ -947,7 +997,7 @@ export default function App() {
       (freshTask.assignedUsers || []).forEach(uid => targetUids.add(uid));
 
       triggerLocalNotification(
-        'ایجاد بلیت کار جدید',
+        'ایجاد تسک کار جدید',
         `تسک "${freshTask.title}" با اولویت ${
           freshTask.priority === 'urgent' ? 'فوری' : freshTask.priority === 'high' ? 'مهم' : 'معمولی'
         } توسط ${currentUser.name} به برد اضافه شد.`,
@@ -968,7 +1018,7 @@ export default function App() {
           initials: currentUser.initials
         },
         type: 'creation',
-        details: `بلیت کار جدید با اولیت "${
+        details: `تسک کار جدید با اولویت "${
           freshTask.priority === 'urgent' ? 'فوری' : freshTask.priority === 'high' ? 'مهم' : 'معمولی'
         }" در بورد فعال شیفت ایجاد گردید`,
         timestamp: new Date().toISOString()
@@ -1008,7 +1058,7 @@ export default function App() {
         initials: currentUser.initials
       },
       type: 'deletion',
-      details: 'بلیت کار کلاً از برد کالسنتر برای دپارتمان حذف و آرشیو گردید',
+      details: 'تسک کار کلاً از برد کالسنتر برای دپارتمان حذف و آرشیو گردید',
       timestamp: new Date().toISOString()
     };
     setActivityLogs(prev => [newDeleteLog, ...prev]);
@@ -1221,7 +1271,7 @@ export default function App() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="جستجوی بلیت، شماره تماس، نام مشترک یا تگ..."
+                placeholder="جستجوی تسک، شماره تماس، نام مشترک یا تگ..."
                 className="w-full text-xs p-3 pr-10 pl-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-1 focus:ring-purple-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-800 dark:text-slate-100 transition-all"
               />
               <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5" />
@@ -1231,12 +1281,12 @@ export default function App() {
             {isManager ? (
               <div className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-400 rounded-2xl text-[11px] font-black shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                <span>دسترسی مدیریت: نظارت بر کل بلیت‌های دپارتمان</span>
+                <span>دسترسی مدیریت: نظارت بر کل تسک‌های دپارتمان</span>
               </div>
             ) : (
               <div className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-purple-55 bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-400 rounded-2xl text-[11px] font-black shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                <span>بلیت‌های ارجاعی به: {currentUser.name}</span>
+                <span>تسک‌های ارجاعی به: {currentUser.name}</span>
               </div>
             )}
 
@@ -1315,9 +1365,9 @@ export default function App() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="جستجوی سریع بلیت‌ها..."
+                placeholder="جستجوی سریع تسک‌ها..."
                 className="text-xs p-3 pr-9 pl-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-705 rounded-2xl outline-none focus:ring-1 focus:ring-purple-500 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 transition-all font-bold text-right w-40 focus:w-56 sm:w-48"
-                title="فیلتر آنی بلیت‌ها بر اساس عنوان یا متن توضیح"
+                title="فیلتر آنی تسک‌ها بر اساس عنوان یا متن توضیح"
               />
               <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
               {searchQuery && (
@@ -1491,7 +1541,7 @@ export default function App() {
           setTaskToEdit(null);
         }}
         onSubmit={handleTaskModalSubmit}
-        taskToEdit={taskToEdit}
+        taskToEdit={tasks.find(t => t.id === taskToEdit?.id) || taskToEdit}
         currentUser={currentUser}
       />
 

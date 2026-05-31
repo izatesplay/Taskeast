@@ -165,8 +165,8 @@ CREATE TABLE IF NOT EXISTS \`notifications\` (
         : `UPDATE tasks SET status = '${lastAction.split('__')[2] || 'in_progress'}', updated_at = NOW() WHERE id = '${lastAction.split('__')[1] || 'task_id'}';`;
     } else if (lastAction.toLowerCase().includes('add') || lastAction.includes('ایجاد') || lastAction.includes('ثبت')) {
       simulatedSql = dbEngine === 'mongodb'
-        ? `db.tasks.insertOne({ title: "${lastAction.split('__')[1] || 'بلیت جدید'}", status: "todo", createdAt: new Date() });`
-        : `INSERT INTO tasks (id, title, status, created_at) VALUES ('task_${Date.now().toString().slice(-4)}', '${lastAction.split('__')[1] || 'بلیت جدید'}', 'todo', NOW());`;
+        ? `db.tasks.insertOne({ title: "${lastAction.split('__')[1] || 'تسک جدید'}", status: "todo", createdAt: new Date() });`
+        : `INSERT INTO tasks (id, title, status, created_at) VALUES ('task_${Date.now().toString().slice(-4)}', '${lastAction.split('__')[1] || 'تسک جدید'}', 'todo', NOW());`;
     } else if (lastAction.toLowerCase().includes('chat') || lastAction.includes('پیام') || lastAction.includes('چت')) {
       simulatedSql = dbEngine === 'mongodb'
         ? `db.tasks.updateOne({ id: "${lastAction.split('__')[1] || 'task_id'}" }, { $push: { chatMessages: { sender: "اپراتور", text: "ثبت گردید" } } });`
@@ -309,7 +309,7 @@ CREATE TABLE IF NOT EXISTS \`notifications\` (
                 <div className="text-xs">
                   <p className="font-bold text-emerald-400">اتصال به دیتابیس MySQL با موفقیت برقرار شد!</p>
                   <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                    میزبان: <span className="font-mono text-slate-200">{mysqlInfo.host}</span> • نام پایگاه‌داده: <span className="font-mono text-slate-200">{mysqlInfo.database}</span> • بلیت‌های کاری به صورت بدون وقفه بین کلاینت‌ها و phpMyAdmin هماهنگ و ذخیره می‌گردند.
+                    میزبان: <span className="font-mono text-slate-200">{mysqlInfo.host}</span> • نام پایگاه‌داده: <span className="font-mono text-slate-200">{mysqlInfo.database}</span> • تسک‌های کاری به صورت بدون وقفه بین کلاینت‌ها و phpMyAdmin هماهنگ و ذخیره می‌گردند.
                   </p>
                 </div>
               </div>

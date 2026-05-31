@@ -207,7 +207,7 @@ export default function CalendarView({ tasks, onViewTask }: CalendarViewProps) {
           </div>
           <div className="text-right">
             <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">تقویم و توزیع ددلاین‌های شیفت</h3>
-            <p className="text-[10px] text-slate-400 mt-0.5">پایش و پورتال زمان‌بندی مهلت اتمام بلیت‌ها و کارهای ارجاعی</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">پایش و پورتال زمان‌بندی مهلت اتمام تسک‌ها و کارهای ارجاعی</p>
           </div>
         </div>
 
@@ -351,7 +351,7 @@ export default function CalendarView({ tasks, onViewTask }: CalendarViewProps) {
             <div className="mt-5 p-3.5 bg-slate-50 dark:bg-slate-950/45 border border-slate-200/40 dark:border-slate-800/80 rounded-2xl flex items-center gap-3">
               <AlertCircle className="w-4 h-4 text-purple-500 shrink-0" />
               <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                <strong className="text-slate-700 dark:text-slate-300">راهنما:</strong> روزهای ستاره‌دار یا دارای نقاط رنگی نشانگر ددلاین بلیت‌های ورودی هستند. با کلیک بر روی هر روز، لیست جزئیات بلیت‌های آن روز در پنجره سمت چپ گشوده خواهد شد.
+                <strong className="text-slate-700 dark:text-slate-300">راهنما:</strong> روزهای ستاره‌دار یا دارای نقاط رنگی نشانگر ددلاین تسک‌های ورودی هستند. با کلیک بر روی هر روز، لیست جزئیات تسک‌های آن روز در پنجره سمت چپ گشوده خواهد شد.
               </p>
             </div>
 
@@ -362,8 +362,8 @@ export default function CalendarView({ tasks, onViewTask }: CalendarViewProps) {
             
             <div className="pb-3 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
               <div>
-                <h4 className="text-xs sm:text-sm font-black text-slate-800 dark:text-white">بلیت‌های روز {selectedDay} {currentMonth.name}</h4>
-                <p className="text-[10px] text-slate-400 mt-1">تعداد {selectedDayTasks.length} بلیت ثبت شده با این سررسید</p>
+                <h4 className="text-xs sm:text-sm font-black text-slate-800 dark:text-white">تسک‌های روز {selectedDay} {currentMonth.name}</h4>
+                <p className="text-[10px] text-slate-400 mt-1">تعداد {selectedDayTasks.length} تسک ثبت شده با این سررسید</p>
               </div>
               <span className="text-xs bg-purple-500/10 text-purple-700 dark:text-purple-400 font-bold px-2 py-0.5 rounded-lg font-mono">
                 {getFormattedDateString(selectedDay)}
@@ -395,7 +395,7 @@ export default function CalendarView({ tasks, onViewTask }: CalendarViewProps) {
                     </div>
 
                     <p className="text-[10px] text-slate-400 mt-1 leading-relaxed line-clamp-2">
-                      {task.description || 'توضیحات بلیت ثبت نشده است...'}
+                      {task.description || 'توضیحات تسک ثبت نشده است...'}
                     </p>
 
                     <div className="flex items-center justify-between mt-2.5">
@@ -409,7 +409,7 @@ export default function CalendarView({ tasks, onViewTask }: CalendarViewProps) {
                         <button
                           onClick={() => onViewTask(task)}
                           className="p-1 px-1.5 text-[9px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors cursor-pointer font-bold inline-flex items-center gap-1"
-                          title="ویرایش بلیت و چت"
+                          title="ویرایش تسک و چت"
                         >
                           <Edit className="w-2.5 h-2.5" />
                           <span>اقدام</span>
@@ -421,7 +421,7 @@ export default function CalendarView({ tasks, onViewTask }: CalendarViewProps) {
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-400 text-center">
                   <ListTodo className="w-8 h-8 text-slate-350 dark:text-slate-700 mb-2 animate-bounce" />
-                  <p className="text-[11px] font-medium">هیچ بلیت و مأموریتی با ددلاین این روز موجود نیست.</p>
+                  <p className="text-[11px] font-medium">هیچ تسک و مأموریتی با ددلاین این روز موجود نیست.</p>
                   <p className="text-[9px] text-slate-400/80 mt-1">مدیران شیف برنامه زمانی متعادلی برای این روز برقرار کرده‌اند.</p>
                 </div>
               )}

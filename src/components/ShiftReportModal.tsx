@@ -473,7 +473,7 @@ export default function ShiftReportModal({
                 </div>
                 <div class="official-title">
                     <h1>گزارش اداری و کارنامه انتهای شیفت پاسخگویی</h1>
-                    <p>سامانه جامع یکپارچه مدیریت صف و بلیت‌های کالسنتر هوشمند • دپارتمان دیسپچ</p>
+                    <p>سامانه جامع یکپارچه مدیریت صف و تسک‌های کالسنتر هوشمند • دپارتمان دیسپچ</p>
                 </div>
             </div>
             
@@ -488,7 +488,7 @@ export default function ShiftReportModal({
 
         <div class="grid-stats">
             <div class="stat-card">
-                <span class="stat-label">تعداد کل بلیت‌های فعال</span>
+                <span class="stat-label">تعداد کل تسک‌های فعال</span>
                 <span class="stat-value">${totalTasks}</span>
             </div>
             <div class="stat-card done">
@@ -517,7 +517,7 @@ export default function ShiftReportModal({
                         <div class="member-role">${user.role}</div>
                     </div>
                     <div style="font-size: 10px; font-weight: bold; background: #e2e8f0; padding: 2px 7px; border-radius: 5px;">
-                        ${userActiveTasks} بلیت فعال
+                        ${userActiveTasks} تسک فعال
                     </div>
                 </div>
               `;
@@ -526,13 +526,13 @@ export default function ShiftReportModal({
 
         <!-- 1. TODO SECTION -->
         <div class="section-header">
-            <span>📋 بلیت‌های در انتظار مأموریت اقدام و بررسی اولیه</span>
-            <span class="section-badge">${todoTasks.length} بلیت</span>
+            <span>📋 تسک‌های در انتظار مأموریت اقدام و بررسی اولیه</span>
+            <span class="section-badge">${todoTasks.length} تسک</span>
         </div>
         <table class="report-table">
             <thead>
                 <tr>
-                    <th style="width: 25%;">عنوان بلیت</th>
+                    <th style="width: 25%;">عنوان تسک</th>
                     <th style="width: 40%;">توضیحات و فرآیند مأموریت</th>
                     <th style="width: 10%;">اولویت بندی</th>
                     <th style="width: 12%;">سررسید اقدام</th>
@@ -555,19 +555,19 @@ export default function ShiftReportModal({
                         </td>
                     </tr>
                 `).join('')}
-                ${todoTasks.length === 0 ? `<tr><td colspan="5" style="text-align: center; color: #94a3b8; font-style: italic; padding: 20px;">هیچ بلیتی در انتظار اقدام وجود ندارد.</td></tr>` : ''}
+                ${todoTasks.length === 0 ? `<tr><td colspan="5" style="text-align: center; color: #94a3b8; font-style: italic; padding: 20px;">هیچ تسکی در انتظار اقدام وجود ندارد.</td></tr>` : ''}
             </tbody>
         </table>
 
         <!-- 2. IN_PROGRESS SECTION -->
         <div class="section-header" style="background-color: #854d0e;">
-            <span>⚡ بلیت‌های فعال در حال پیگیری، اقدام جدی و رفع باگ</span>
-            <span class="section-badge">${inProgressTasks.length} بلیت</span>
+            <span>⚡ تسک‌های فعال در حال پیگیری، اقدام جدی و رفع باگ</span>
+            <span class="section-badge">${inProgressTasks.length} تسک</span>
         </div>
         <table class="report-table">
             <thead>
                 <tr>
-                    <th style="width: 25%;">عنوان بلیت</th>
+                    <th style="width: 25%;">عنوان تسک</th>
                     <th style="width: 40%;">شرح اقدام جاری</th>
                     <th style="width: 10%;">اولویت</th>
                     <th style="width: 12%;">مهلت بررسی</th>
@@ -593,19 +593,19 @@ export default function ShiftReportModal({
                         </td>
                     </tr>
                 `).join('')}
-                ${inProgressTasks.length === 0 ? `<tr><td colspan="5" style="text-align: center; color: #94a3b8; font-style: italic; padding: 20px;">هیچ بلیت فعالی در دست ارجاع و اپراتوری نیست.</td></tr>` : ''}
+                ${inProgressTasks.length === 0 ? `<tr><td colspan="5" style="text-align: center; color: #94a3b8; font-style: italic; padding: 20px;">هیچ تسک فعالی در دست ارجاع و اپراتوری نیست.</td></tr>` : ''}
             </tbody>
         </table>
 
         <!-- 3. DONE SECTION -->
         <div class="section-header" style="background-color: #166534;">
             <span>🎯 اقدامات نهایی شده، کامپلت کامل و بایگانی شیفت جاری</span>
-            <span class="section-badge">${doneTasks.length} بلیت</span>
+            <span class="section-badge">${doneTasks.length} تسک</span>
         </div>
         <table class="report-table">
             <thead>
                 <tr>
-                    <th style="width: 25%;">عنوان بلیت خاتمه یافته</th>
+                    <th style="width: 25%;">عنوان تسک خاتمه یافته</th>
                     <th style="width: 45%;">شرح مأموریت انجام شده</th>
                     <th style="width: 15%;">تاریخ اتمام و بایگانی</th>
                     <th style="width: 15%;">کارشناسان مسئول</th>
@@ -625,7 +625,7 @@ export default function ShiftReportModal({
                         </td>
                     </tr>
                 `).join('')}
-                ${doneTasks.length === 0 ? `<tr><td colspan="4" style="text-align: center; color: #94a3b8; font-style: italic; padding: 20px;">هنوز هیچ بلیتی در این شیفت نهایی نشده است.</td></tr>` : ''}
+                ${doneTasks.length === 0 ? `<tr><td colspan="4" style="text-align: center; color: #94a3b8; font-style: italic; padding: 20px;">هنوز هیچ تسکی در این شیفت نهایی نشده است.</td></tr>` : ''}
             </tbody>
         </table>
 
@@ -637,7 +637,7 @@ export default function ShiftReportModal({
                 <div class="log-row">
                     <div>
                         <strong>[${log.user.name} - ${log.user.role}]</strong> 
-                        بلیت «${log.taskTitle}» : ${log.details}
+                        تسک «${log.taskTitle}» : ${log.details}
                     </div>
                     <div style="font-family: monospace; color: #64748b; font-size: 9.5px;">
                       ${new Date(log.timestamp).toLocaleTimeString('fa-IR')}
@@ -761,7 +761,7 @@ export default function ShiftReportModal({
                 گزارش نهایی وضعیت شیفت کاری مرکز تماس
               </h1>
               <p className="text-[10.5px] text-slate-500 dark:text-slate-400 print:text-slate-600 leading-relaxed">
-                سامانه مدیریت بلیت‌ها و هماهنگی صف‌های ترافیکی • دپارتمان پاسخگویی شرکت
+                سامانه مدیریت تسک‌ها و هماهنگی صف‌های ترافیکی • دپارتمان پاسخگویی شرکت
               </p>
             </div>
             
@@ -778,7 +778,7 @@ export default function ShiftReportModal({
             <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl">
               <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 mb-1">
                 <Layers className="w-4 h-4 text-slate-500" />
-                <span className="text-[10px] font-bold">کل بلیت‌های فعال</span>
+                <span className="text-[10px] font-bold">کل تسک‌های فعال</span>
               </div>
               <span className="text-2xl font-mono font-black">{totalTasks}</span>
             </div>
@@ -827,7 +827,7 @@ export default function ShiftReportModal({
                       <p className="text-[10px] text-slate-400">{user.role}</p>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 bg-slate-250 dark:bg-slate-800 rounded font-semibold text-slate-600 dark:text-slate-300">
-                      {userActiveTasks} بلیت فعال
+                      {userActiveTasks} تسک فعال
                     </span>
                   </div>
                 );
@@ -842,7 +842,7 @@ export default function ShiftReportModal({
             <div className="space-y-2.5">
               <div className="flex items-center gap-2 border-b border-indigo-500/10 pb-2">
                 <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-350 rounded-md text-[10px] font-black">📋 در انتظار اقدام</span>
-                <span className="text-[11px] text-slate-400 font-bold">({todoTasks.length} بلیت ثبت شده)</span>
+                <span className="text-[11px] text-slate-400 font-bold">({todoTasks.length} تسک ثبت شده)</span>
               </div>
               
               {todoTasks.length > 0 ? (
@@ -850,7 +850,7 @@ export default function ShiftReportModal({
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-850">
-                        <th className="p-3 font-black text-right text-slate-700 dark:text-slate-300">عنوان بلیت کاری</th>
+                        <th className="p-3 font-black text-right text-slate-700 dark:text-slate-300">عنوان تسک کاری</th>
                         <th className="p-3 font-black text-right text-slate-700 dark:text-slate-300">شرح مأموریت / جزئیات</th>
                         <th className="p-3 font-black text-center text-slate-700 dark:text-slate-300">اولویت</th>
                         <th className="p-3 font-black text-center text-slate-700 dark:text-slate-300">سررسید</th>
@@ -887,7 +887,7 @@ export default function ShiftReportModal({
             <div className="space-y-2.5">
               <div className="flex items-center gap-2 border-b border-indigo-500/10 pb-2">
                 <span className="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-md text-[10px] font-black">⚡ در حال اقدام جاری</span>
-                <span className="text-[11px] text-slate-400 font-bold">({inProgressTasks.length} بلیت در حال بررسی)</span>
+                <span className="text-[11px] text-slate-400 font-bold">({inProgressTasks.length} تسک در حال بررسی)</span>
               </div>
               
               {inProgressTasks.length > 0 ? (
@@ -895,7 +895,7 @@ export default function ShiftReportModal({
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-850">
-                        <th className="p-3 font-black text-right text-slate-700 dark:text-slate-300">عنوان بلیت کاری</th>
+                        <th className="p-3 font-black text-right text-slate-700 dark:text-slate-300">عنوان تسک کاری</th>
                         <th className="p-3 font-black text-right text-slate-700 dark:text-slate-300">اقدام شیفت / یادداشت‌ها</th>
                         <th className="p-3 font-black text-center text-slate-700 dark:text-slate-300">اولویت</th>
                         <th className="p-3 font-black text-center text-slate-700 dark:text-slate-300">مهلت</th>
@@ -937,7 +937,7 @@ export default function ShiftReportModal({
             <div className="space-y-2.5">
               <div className="flex items-center gap-2 border-b border-indigo-500/10 pb-2">
                 <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-md text-[10px] font-black">🎯 اقدامات رفع شده و بایگانی</span>
-                <span className="text-[11px] text-slate-400 font-bold">({doneTasks.length} بلیت انجام شده)</span>
+                <span className="text-[11px] text-slate-400 font-bold">({doneTasks.length} تسک انجام شده)</span>
               </div>
               
               {doneTasks.length > 0 ? (
@@ -945,7 +945,7 @@ export default function ShiftReportModal({
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-850">
-                        <th className="p-3 font-black text-right text-slate-700 dark:text-slate-300">عنوان بلیت نهایی شده</th>
+                        <th className="p-3 font-black text-right text-slate-700 dark:text-slate-300">عنوان تسک نهایی شده</th>
                         <th className="p-3 font-black text-right text-slate-700 dark:text-slate-300">شرح مأموریت انجام شده</th>
                         <th className="p-3 font-black text-center text-slate-700 dark:text-slate-300">وضعیت</th>
                         <th className="p-3 font-black text-center text-slate-700 dark:text-slate-300">ثبت اتمام</th>
@@ -972,7 +972,7 @@ export default function ShiftReportModal({
                   </table>
                 </div>
               ) : (
-                <p className="text-[11px] text-slate-400 italic text-center py-2">هنوز هیچ بلیتی در شیفت حاضر نهایی و آرشیو نشده است.</p>
+                <p className="text-[11px] text-slate-400 italic text-center py-2">هنوز هیچ تسکی در شیفت حاضر نهایی و آرشیو نشده است.</p>
               )}
             </div>
 
@@ -990,7 +990,7 @@ export default function ShiftReportModal({
                 {activityLogs.slice(0, 10).map((log) => (
                   <div key={log.id} className="flex justify-between items-center text-[10.5px] border-b border-dashed border-slate-200 dark:border-slate-800/80 pb-2 last:border-b-0 last:pb-0">
                     <p className="text-slate-600 dark:text-slate-350">
-                      <strong>[{log.user.name}]</strong> بلیت «{log.taskTitle}» • {log.details}
+                      <strong>[{log.user.name}]</strong> تسک «{log.taskTitle}» • {log.details}
                     </p>
                     <span className="font-mono text-slate-400">{new Date(log.timestamp).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>

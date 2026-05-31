@@ -46,9 +46,9 @@ export default function ActivityLog({ logs, onClearLogs, isManager }: ActivityLo
 
   const getPersianType = (type: string) => {
     switch(type) {
-      case 'status_change': return 'تغییر وضعیت بلیت';
-      case 'deletion': return 'حذف قطعی بلیت';
-      case 'creation': return 'ایجاد بلیت جدید';
+      case 'status_change': return 'تغییر وضعیت تسک';
+      case 'deletion': return 'حذف قطعی تسک';
+      case 'creation': return 'ایجاد تسک جدید';
       case 'edit': return 'ویرایش مشخصات';
       default: return 'سایر فعالیت‌ها';
     }
@@ -118,7 +118,7 @@ export default function ActivityLog({ logs, onClearLogs, isManager }: ActivityLo
           </div>
           <div>
             <h3 className="font-black text-slate-800 dark:text-slate-100 text-base sm:text-lg">تاریخچه و لاگ فعالیت‌های بورد شیفت</h3>
-            <p className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 mt-1">رهگیری دقیق تمامی تغییر وضعیت‌های بلیت یا بلیت‌های حذف شده کالسنتر با قابلیت فیلترینگ مستقل</p>
+            <p className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 mt-1">رهگیری دقیق تمامی تغییر وضعیت‌های تسک یا تسک‌های حذف شده کالسنتر با قابلیت فیلترینگ مستقل</p>
           </div>
         </div>
 
@@ -144,7 +144,7 @@ export default function ActivityLog({ logs, onClearLogs, isManager }: ActivityLo
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="جستجو بر اساس عنوان بلیت، اپراتور یا اقدام..."
+              placeholder="جستجو بر اساس عنوان تسک، اپراتور یا اقدام..."
               className="w-full text-xs p-3 pr-10 pl-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 transition-all text-right"
             />
             <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5" />
@@ -166,7 +166,7 @@ export default function ActivityLog({ logs, onClearLogs, isManager }: ActivityLo
             >
               <option value="all">🔍 همه سوابق</option>
               <option value="status_change">🔄 جا‌به‌جایی‌های ستون</option>
-              <option value="deletion">❌ عملیات‌های حذف بلیت</option>
+              <option value="deletion">❌ عملیات‌های حذف تسک</option>
             </select>
             <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
           </div>
@@ -214,7 +214,7 @@ export default function ActivityLog({ logs, onClearLogs, isManager }: ActivityLo
                     </div>
 
                     <p className="text-xs text-slate-600 dark:text-slate-350 leading-relaxed">
-                      بلیت: <strong className="text-slate-800 dark:text-slate-100">«{log.taskTitle}»</strong> • {log.details}
+                      تسک: <strong className="text-slate-800 dark:text-slate-100">«{log.taskTitle}»</strong> • {log.details}
                     </p>
                   </div>
                 </div>

@@ -187,7 +187,7 @@ export default function TaskModal({
           <div className="flex-1 p-5 border-b md:border-b-0 md:border-l border-slate-105 border-slate-100 dark:border-slate-805 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 max-h-[55vh] md:max-h-[90vh] overflow-hidden flex flex-col justify-between">
             <div className="flex flex-col h-full overflow-hidden">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3 shrink-0">
-                <h3 className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200">💬 چت درون‌برنامه‌ای بلیت</h3>
+                <h3 className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200">💬 چت درون‌برنامه‌ای تسک</h3>
                 {isLoadingMessages ? (
                   <span className="text-[9px] text-purple-400 animate-pulse">در حال بارگذاری...</span>
                 ) : (
@@ -483,7 +483,7 @@ export default function TaskModal({
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="مثال: اطلاعات بلیت، شرح مشکل مشترک و توافق برای تماس جبرانی..."
+                    placeholder="مثال: اطلاعات تسک، شرح مشکل مشترک و توافق برای تماس جبرانی..."
                     className="w-full text-xs p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-1 focus:ring-purple-500 focus:bg-white dark:focus:bg-slate-900 outline-none h-24 resize-none text-slate-800 dark:text-slate-100"
                   />
                 </div>
