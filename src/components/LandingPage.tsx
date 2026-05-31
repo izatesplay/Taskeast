@@ -180,7 +180,7 @@ export default function LandingPage({ onStart, mockUsers }: LandingPageProps) {
                   className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold backdrop-blur-md shadow-lg"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-pink-400 animate-spin" style={{ animationDuration: '4s' }} />
-                  <span>طراحی مدرن ۳ بعدی شیفت کاری سال ۱۴۰۵</span>
+                  <span>طراحی مدرن شیفت کاری سال ۱۴۰۵</span>
                 </motion.div>
 
                 <motion.h2 
@@ -201,7 +201,7 @@ export default function LandingPage({ onStart, mockUsers }: LandingPageProps) {
                   transition={{ delay: 0.3 }}
                   className="text-slate-300/90 text-sm sm:text-base leading-relaxed max-w-2xl text-justify"
                 >
-                  به منظور بهبود حداکثری امنیت اطلاعات کاربری پاسخگویی مرکز ارتباط، هر کارشناس پس از تایید هویت رمز عبور موقت، صرفاً تسک‌ها، پیام‌های چت درون‌تیمی و گزارش‌های مربوط به خود را مشاهده می‌کند. محیط به صورت ۳ بعدی و متصل به پایگاه داده phpMyAdmin توسعه یافته است.
+                  به منظور بهبود حداکثری امنیت اطلاعات کاربری پاسخگویی مرکز ارتباط، هر کارشناس پس از تایید هویت رمز عبور موقت، صرفاً تسک‌ها، پیام‌های چت درون‌تیمی و گزارش‌های مربوط به خود را مشاهده می‌کند. محیط به صورت مدرن و متصل به پایگاه داده phpMyAdmin توسعه یافته است.
                 </motion.p>
 
                 {/* Primary CTA button to slide into secure login step */}
@@ -215,7 +215,7 @@ export default function LandingPage({ onStart, mockUsers }: LandingPageProps) {
                     onClick={() => setStep('login-select')}
                     className="group relative px-9 py-5 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 rounded-2xl font-bold text-white shadow-[0_0_35px_rgba(168,85,247,0.35)] hover:shadow-[0_0_50px_rgba(236,72,153,0.6)] hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 cursor-pointer flex items-center justify-center gap-3 border border-white/15"
                   >
-                    <span>ورود به سامانه ۳ بعدی و شروع شیفت</span>
+                    <span>ورود به سامانه و شروع شیفت</span>
                     <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                   </button>
                   
@@ -237,11 +237,11 @@ export default function LandingPage({ onStart, mockUsers }: LandingPageProps) {
                     <p className="text-[10px] sm:text-xs text-slate-400 mt-1">تسک‌ها برای شخص شما</p>
                   </div>
                   <div className="group bg-slate-950/40 p-4 rounded-2xl border border-slate-900 hover:border-pink-500/20 hover:bg-slate-900/20 transform hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
-                    <p className="text-lg sm:text-xl font-black text-pink-400 font-mono">وب‌آدیو ۳D</p>
+                    <p className="text-lg sm:text-xl font-black text-pink-400 font-mono">Web Audio</p>
                     <p className="text-[10px] sm:text-xs text-slate-400 mt-1">اعلام صوتی هوشمند</p>
                   </div>
                   <div className="group bg-slate-950/40 p-4 rounded-2xl border border-slate-900 hover:border-cyan-500/20 hover:bg-slate-900/20 transform hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
-                    <p className="text-lg sm:text-xl font-black text-cyan-400 font-mono">۵ اپراتور</p>
+                    <p className="text-lg sm:text-xl font-black text-cyan-400 font-mono">اپراتور</p>
                     <p className="text-[10px] sm:text-xs text-slate-400 mt-1">همگام‌سازی زنده شیفت</p>
                   </div>
                 </motion.div>
