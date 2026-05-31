@@ -275,7 +275,7 @@ export default function LandingPage({ onStart, mockUsers }: LandingPageProps) {
                       <div className="absolute inset-0 bg-purple-500/5 animate-pulse" />
                       <div className="relative text-center py-2">
                         <Cpu className="w-9 h-9 text-purple-300 mx-auto mb-3 animate-spin" style={{ animationDuration: '6s' }} />
-                        <h4 className="text-xs sm:text-sm font-black text-white">اتصال بلادرنگ چت تیمی</h4>
+                        <h4 className="text-xs sm:text-sm font-black text-white">اتصال به چت تیمی</h4>
                         <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
                           با استفاده از هسته یکپارچه LocalStorage و MySQL، با ثبت هر پیام اعلان فوری صوتی و دیداری برای سازنده و ارجاع‌شونده صادر می‌گردد.
                         </p>
