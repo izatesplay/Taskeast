@@ -21,7 +21,8 @@ import {
   Layers,
   History,
   TrendingUp,
-  FileCheck2
+  FileCheck2,
+  BarChart2
 } from 'lucide-react';
 import { ActivityLogItem } from './ActivityLog';
 
@@ -442,6 +443,82 @@ export default function ShiftReportModal({
             font-size: 13px;
         }
 
+        /* Operator Performance Widget Styles */
+        .performance-widget {
+            border: 1px dashed #cbd5e1;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 15px;
+            margin-bottom: 30px;
+        }
+
+        .performance-widget-title {
+            font-size: 11px;
+            font-weight: 900;
+            color: #1e1b4b;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .performance-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 15px;
+        }
+
+        .performance-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .performance-operator-name {
+            width: 140px;
+            font-weight: 800;
+            font-size: 11px;
+            color: #0f172a;
+        }
+
+        .performance-chart-bar-container {
+            flex-grow: 1;
+            height: 14px;
+            background-color: #e2e8f0;
+            border-radius: 7px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .performance-chart-bar-fill {
+            height: 100%;
+            border-radius: 7px;
+            background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+            transition: width 0.3s ease;
+        }
+
+        .performance-chart-bar-text {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 8px;
+            font-weight: 900;
+            color: #000000;
+            font-family: 'Courier New', monospace;
+        }
+
+        .performance-operator-badge {
+            font-size: 10px;
+            font-weight: bold;
+            background-color: #eff6ff;
+            color: #1d4ed8;
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid #bfdbfe;
+            white-space: nowrap;
+        }
+
         @media print {
             .btn-container {
                 display: none;
@@ -521,6 +598,38 @@ export default function ShiftReportModal({
                     </div>
                 </div>
               `;
+            }).join('')}
+        </div>
+
+        <!-- Operator Performance Widget -->
+        <h3 style="font-size: 12px; color: #1e1b4b; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 35px;">📊 نمودار جامع راندمان عملکرد اپراتورها (پاسخ‌های ثبت‌شده نهایی)</h3>
+        <div class="performance-widget">
+            ${mockUsers.map(user => {
+                const doneCount = tasks.filter(t => t.assignedUsers.includes(user.id) && t.status === 'done').length;
+                const totalAssigned = tasks.filter(t => t.assignedUsers.includes(user.id)).length;
+                const relativePct = totalAssigned > 0 ? Math.round((doneCount / totalAssigned) * 100) : 0;
+                
+                let performanceStr = "بدون مأموریت نهایی";
+                if (doneCount >= 3) {
+                    performanceStr = "بسیار عالی 🌟";
+                } else if (doneCount > 0) {
+                    performanceStr = "کوشا و کوآلیفاید 👍";
+                } else if (totalAssigned > 0) {
+                    performanceStr = "در حال پیگیری فعال ⏳";
+                }
+
+                return `
+                    <div class="performance-row">
+                        <div class="performance-operator-name">${user.name} (${user.role})</div>
+                        <div class="performance-chart-bar-container">
+                            <div class="performance-chart-bar-fill" style="width: ${relativePct}%"></div>
+                            <span class="performance-chart-bar-text" style="color: #0f172a; font-weight: bold;">
+                                ${doneCount} از ${totalAssigned} کار نهایی شده (${relativePct}٪ راندمان)
+                            </span>
+                        </div>
+                        <div class="performance-operator-badge">${performanceStr}</div>
+                    </div>
+                `;
             }).join('')}
         </div>
 
@@ -828,6 +937,60 @@ export default function ShiftReportModal({
                     </div>
                     <span className="text-[10px] px-2 py-0.5 bg-slate-250 dark:bg-slate-800 rounded font-semibold text-slate-600 dark:text-slate-300">
                       {userActiveTasks} تسک فعال
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Operator Performance Analytics Widget */}
+          <div className="p-4 bg-gradient-to-tr from-slate-50 to-indigo-50/20 dark:from-slate-900/40 dark:to-indigo-950/10 border border-slate-150 dark:border-slate-800/80 rounded-2xl space-y-3">
+            <h4 className="text-xs font-black text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5">
+              <BarChart2 className="w-4 h-4 text-indigo-500 animate-pulse" />
+              <span>کارنامه راندمان عملکرد اپراتورها (پاسخ‌های نهایی شده در این شیفت)</span>
+            </h4>
+            <div className="space-y-3">
+              {mockUsers.map(user => {
+                const doneCount = tasks.filter(t => t.assignedUsers.includes(user.id) && t.status === 'done').length;
+                const totalAssigned = tasks.filter(t => t.assignedUsers.includes(user.id)).length;
+                const relativePct = totalAssigned > 0 ? Math.round((doneCount / totalAssigned) * 100) : 0;
+                
+                let performanceStr = "بدون مأموریت نهایی";
+                let badgeClass = "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200";
+                if (doneCount >= 3) {
+                  performanceStr = "بسیار عالی 🌟";
+                  badgeClass = "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-450 border-emerald-200 dark:border-emerald-900/40";
+                } else if (doneCount > 0) {
+                  performanceStr = "کوشا و کوآلیفاید 👍";
+                  badgeClass = "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-450 border-blue-200 dark:border-blue-900/40";
+                } else if (totalAssigned > 0) {
+                  performanceStr = "در حال پیگیری فعال ⏳";
+                  badgeClass = "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-450 border-amber-200 dark:border-amber-900/40";
+                }
+
+                return (
+                  <div key={`perf-${user.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <div className="w-40 shrink-0 text-right">
+                      <p className="font-bold text-slate-800 dark:text-slate-100">{user.name}</p>
+                      <p className="text-[10px] text-slate-400">{user.role}</p>
+                    </div>
+                    
+                    <div className="flex-grow space-y-1 text-right">
+                      <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                        <span>کیفیت نهایی‌سازی تسک‌ها</span>
+                        <span className="font-mono">{doneCount} از {totalAssigned} تسک پاس شده ({relativePct}٪ راندمان)</span>
+                      </div>
+                      <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" 
+                          style={{ width: `${relativePct}%` }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border text-center shrink-0 w-28 ${badgeClass}`}>
+                      {performanceStr}
                     </span>
                   </div>
                 );

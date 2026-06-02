@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { AnimatePresence } from 'motion/react';
 import { TaskStatus, Task } from '../types';
 import TaskCard from './TaskCard';
 
@@ -113,17 +114,19 @@ export default function BoardColumn({
       {/* Tasks Stack Container */}
       <div className={`flex flex-col gap-3.5 flex-grow overflow-y-auto max-h-[600px] rounded-xl p-1.5 ${cStyle.backdrop}`}>
         {tasks.length > 0 ? (
-          tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onViewDetails={onViewDetails}
-              onDeleteTask={onDeleteTask}
-              onMoveTask={onMoveTask}
-              onDragStart={onDragStart}
-              isSupervisor={isSupervisor}
-            />
-          ))
+          <AnimatePresence mode="popLayout">
+            {tasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onViewDetails={onViewDetails}
+                onDeleteTask={onDeleteTask}
+                onMoveTask={onMoveTask}
+                onDragStart={onDragStart}
+                isSupervisor={isSupervisor}
+              />
+            ))}
+          </AnimatePresence>
         ) : (
           /* Hollow Empty State */
           <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-800/80 rounded-2xl flex-grow h-full bg-slate-50/20 dark:bg-slate-900/10">

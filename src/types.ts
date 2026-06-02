@@ -36,6 +36,12 @@ export interface TaskAlarm {
   creatorName: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -50,6 +56,7 @@ export interface Task {
   creatorId?: string;
   creatorName?: string;
   alarms?: TaskAlarm[]; // Alert triggers/timers set by users or supervisors
+  checklist?: ChecklistItem[]; // Checklist option
 }
 
 export interface ChatMessage {

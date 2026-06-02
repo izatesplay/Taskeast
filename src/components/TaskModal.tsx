@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Task, TaskPriority, TaskStatus, User, Note, ChatMessage, TaskAlarm } from '../types';
+import { Task, TaskPriority, TaskStatus, User, Note, ChatMessage, TaskAlarm, ChecklistItem } from '../types';
 import { getDynamicUsers } from '../mockData';
 import { 
   X, 
@@ -64,6 +64,8 @@ export default function TaskModal({
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [assignedUsers, setAssignedUsers] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState('1405-03-10');
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [newChecklistItemText, setNewChecklistItemText] = useState('');
 
   // Chat message & attachment states
   const [chatText, setChatText] = useState('');
@@ -95,6 +97,7 @@ export default function TaskModal({
       setAssignedUsers(taskToEdit.assignedUsers);
       setDueDate(taskToEdit.dueDate);
       setAlarms(taskToEdit.alarms || []);
+      setChecklist(taskToEdit.checklist || []);
       setActiveTab('details');
     } else {
       setTitle('');
@@ -105,6 +108,7 @@ export default function TaskModal({
       // Default due date to roughly 7 days from now
       setDueDate('1405-03-15');
       setAlarms([]);
+      setChecklist([]);
       setActiveTab('edit');
     }
     setChatText('');
@@ -209,6 +213,7 @@ export default function TaskModal({
       notes: taskToEdit ? taskToEdit.notes : [],
       chatMessages: messages,
       alarms: alarms,
+      checklist: checklist,
     });
 
     onClose();
@@ -511,6 +516,39 @@ export default function TaskModal({
                     {taskToEdit.description || 'توضیحی ثبت نگردیده.'}
                   </p>
                 </div>
+
+                {/* Interactive Task Checklist Section */}
+                {taskToEdit.checklist && taskToEdit.checklist.length > 0 && (
+                  <div className="space-y-2 bg-gradient-to-tr from-purple-500/5 to-indigo-500/5 dark:from-purple-950/10 dark:to-indigo-950/5 border border-purple-500/10 dark:border-purple-500/10 p-3.5 rounded-2xl text-right shadow-xs">
+                    <span className="text-[11.5px] text-purple-650 dark:text-purple-400 font-extrabold block mb-1">🛠️ بخش‌های مأموریت تماس (چک‌لیست اقدامات فرعی):</span>
+                    <div className="space-y-2.5 max-h-[145px] overflow-y-auto">
+                      {taskToEdit.checklist.map((item) => (
+                        <label 
+                          key={item.id} 
+                          className="flex items-center gap-2.5 cursor-pointer select-none group text-xs text-slate-700 dark:text-slate-300"
+                        >
+                          <input 
+                            type="checkbox"
+                            checked={item.completed}
+                            onChange={() => {
+                              const updatedChecklist = (taskToEdit.checklist || []).map(ch => 
+                                ch.id === item.id ? { ...ch, completed: !ch.completed } : ch
+                              );
+                              onSubmit({
+                                ...taskToEdit,
+                                checklist: updatedChecklist
+                              });
+                            }}
+                            className="w-4 h-4 rounded text-purple-600 dark:bg-slate-950 border-slate-200 dark:border-slate-700 focus:ring-purple-500 cursor-pointer"
+                          />
+                          <span className={`transition-all duration-200 ${item.completed ? 'line-through text-slate-400 font-medium' : 'font-semibold text-slate-800 dark:text-slate-200'}`}>
+                            {item.text}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Badges indicators row */}
                 <div className="grid grid-cols-3 gap-3">
@@ -880,6 +918,86 @@ export default function TaskModal({
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+
+                {/* Field 7: Checklist Builder (New Feature) */}
+                <div className="space-y-2 text-right border-t border-dashed border-slate-200 dark:border-slate-800 pt-4">
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 block">📦 چک‌لیست بخش‌های اختصاصی تسک (اقدامات مجزا)</label>
+                  
+                  {/* Current checklist items list scroll box */}
+                  {checklist.length > 0 && (
+                    <div className="space-y-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-850 rounded-2xl p-3 max-h-[150px] overflow-y-auto">
+                      {checklist.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800 text-xs">
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="checkbox"
+                              checked={item.completed}
+                              onChange={() => {
+                                setChecklist(checklist.map(ch => 
+                                  ch.id === item.id ? { ...ch, completed: !ch.completed } : ch
+                                ));
+                              }}
+                              className="w-4 h-4 rounded text-purple-600 border-slate-300 dark:border-slate-700 focus:ring-purple-500 cursor-pointer"
+                            />
+                            <span className={item.completed ? 'line-through text-slate-400 font-medium' : 'font-semibold text-slate-700 dark:text-slate-300'}>
+                              {item.text}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setChecklist(checklist.filter(ch => ch.id !== item.id));
+                            }}
+                            className="p-1 text-rose-500 hover:text-white hover:bg-rose-500 rounded-lg transition-colors cursor-pointer"
+                            title="حذف آیتم"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add new checklist item form elements row */}
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      value={newChecklistItemText}
+                      onChange={(e) => setNewChecklistItemText(e.target.value)}
+                      placeholder="عنوان بخش جدید (مثلاً: تماس تاییدیه مالی، هماهنگی دیسپچ)"
+                      className="flex-grow text-xs p-2.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-1 focus:ring-purple-500 focus:bg-white dark:focus:bg-slate-900 outline-none text-slate-800 dark:text-slate-100"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newChecklistItemText.trim()) {
+                            setChecklist([...checklist, {
+                              id: 'ch_' + Date.now() + Math.random().toString(36).substr(2, 4),
+                              text: newChecklistItemText.trim(),
+                              completed: false
+                            }]);
+                            setNewChecklistItemText('');
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newChecklistItemText.trim()) {
+                          setChecklist([...checklist, {
+                            id: 'ch_' + Date.now() + Math.random().toString(36).substr(2, 4),
+                            text: newChecklistItemText.trim(),
+                            completed: false
+                          }]);
+                          setNewChecklistItemText('');
+                        }
+                      }}
+                      className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer"
+                    >
+                      افزودن بخش
+                    </button>
                   </div>
                 </div>
 

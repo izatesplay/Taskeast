@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { motion } from 'motion/react';
 import { Task, TaskStatus, TaskPriority, User, Notification as AppNotification, TaskAlarm } from './types';
 import { mockUsers, initialTasks, initialNotifications } from './mockData';
 import LandingPage from './components/LandingPage';
@@ -39,6 +40,29 @@ import {
   UserPlus,
   X
 } from 'lucide-react';
+
+const statsContainerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const statsItemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { 
+      type: 'spring', 
+      stiffness: 100, 
+      damping: 15 
+    } 
+  }
+};
 
 export default function App() {
   // Navigation & View Mode
@@ -86,9 +110,17 @@ export default function App() {
     return saved !== 'false';
   });
 
+  const [urgentSoundType, setUrgentSoundType] = useState<string>(() => {
+    return localStorage.getItem('callcenter_urgent_sound') || 'double_chord';
+  });
+
   useEffect(() => {
     localStorage.setItem('callcenter_sound_enabled', String(soundEnabled));
   }, [soundEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('callcenter_urgent_sound', urgentSoundType);
+  }, [urgentSoundType]);
 
   // Active / Logged-in Operator testing state
   const [currentUser, setCurrentUser] = useState<User>(() => {
@@ -726,6 +758,87 @@ export default function App() {
         gainNode.connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.15);
+      } else if (typeOrPriority === 'urgent') {
+        // Custom sound implementation for urgent items
+        if (urgentSoundType === 'laser_sweep') {
+          const osc = ctx.createOscillator();
+          const gainNode = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(880, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.4);
+          
+          gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+          
+          osc.connect(gainNode);
+          gainNode.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        } else if (urgentSoundType === 'bell_ring') {
+          const notes = [987.77, 1318.51, 1567.98]; // B5, E6, G6
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.05);
+            filter.type = 'peaking';
+            filter.frequency.value = 2000;
+            
+            gainNode.gain.setValueAtTime(0.04, ctx.currentTime + idx * 0.05);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.05 + 0.4);
+            
+            osc.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            osc.start(ctx.currentTime + idx * 0.05);
+            osc.stop(ctx.currentTime + idx * 0.05 + 0.4);
+          });
+        } else if (urgentSoundType === 'melodic_triad') {
+          const notes = [440, 554.37, 659.25, 880]; // A4, C#5, E5, A5
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.07);
+            
+            gainNode.gain.setValueAtTime(0.05, ctx.currentTime + idx * 0.07);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.07 + 0.3);
+            
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            osc.start(ctx.currentTime + idx * 0.07);
+            osc.stop(ctx.currentTime + idx * 0.07 + 0.3);
+          });
+        } else {
+          // Fallback to double_chord
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gainNode = ctx.createGain();
+          
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(660, ctx.currentTime);
+          osc1.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+          
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(440, ctx.currentTime);
+          osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
+          
+          gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+          
+          osc1.connect(gainNode);
+          osc1.start();
+          osc1.stop(ctx.currentTime + 0.35);
+          
+          osc2.connect(gainNode);
+          osc2.start();
+          osc2.stop(ctx.currentTime + 0.35);
+          
+          gainNode.connect(ctx.destination);
+        }
       } else if (isHigh) {
         // Double alarm chords Sequence
         const osc1 = ctx.createOscillator();
@@ -1080,7 +1193,7 @@ export default function App() {
   };
 
   // Task Creation and specs modification handler (supports real-time chat sync and file attachments)
-  const handleTaskModalSubmit = (taskData: Omit<Task, 'id' | 'createdAt' | 'notes'> & { id?: string; notes?: Task['notes']; chatMessages?: Task['chatMessages']; alarms?: Task['alarms'] }) => {
+  const handleTaskModalSubmit = (taskData: Omit<Task, 'id' | 'createdAt' | 'notes'> & { id?: string; notes?: Task['notes']; chatMessages?: Task['chatMessages']; alarms?: Task['alarms']; checklist?: Task['checklist'] }) => {
     registerMutation();
     if (taskData.id) {
       // Edit mode
@@ -1100,6 +1213,7 @@ export default function App() {
             notes: taskData.notes || [],
             chatMessages: taskData.chatMessages || [],
             alarms: taskData.alarms || t.alarms || [],
+            checklist: taskData.checklist !== undefined ? taskData.checklist : t.checklist || [],
           };
         }
         return t;
@@ -1168,7 +1282,8 @@ export default function App() {
         chatMessages: [],
         creatorId: currentUser.id,
         creatorName: currentUser.name,
-        createdAt: 'امروز ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
+        createdAt: 'امروز ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }),
+        checklist: taskData.checklist || [],
       };
 
       setTasks(prev => [freshTask, ...prev]);
@@ -1366,25 +1481,73 @@ export default function App() {
             </div>
           </div>
 
-          {/* Quick Stats Grid Badges */}
-          <div className="grid grid-cols-4 gap-2 sm:gap-3 bg-slate-100/60 dark:bg-slate-950/40 p-1.5 rounded-2xl border border-slate-200/40 dark:border-slate-800/50">
-            <div className="px-2.5 py-1 text-center">
-              <span className="text-[9px] text-slate-400 dark:text-slate-500 block">کل کارهای فعال</span>
-              <span className="text-xs sm:text-sm font-black text-slate-800 dark:text-white font-mono">{totalCount}</span>
-            </div>
-            <div className="px-2.5 py-1 text-center border-r border-slate-200/50 dark:border-slate-800/50">
-              <span className="text-[9px] text-slate-400 dark:text-slate-500 block">در حال تماس</span>
-              <span className="text-xs sm:text-sm font-black text-amber-500 dark:text-amber-400 font-mono">{inProgressCount}</span>
-            </div>
-            <div className="px-2.5 py-1 text-center border-r border-slate-200/50 dark:border-slate-800/50">
-              <span className="text-[9px] text-slate-400 dark:text-slate-500 block">پاسخ‌داده شده</span>
-              <span className="text-xs sm:text-sm font-black text-emerald-500 dark:text-emerald-400 font-mono">{completedCount}</span>
-            </div>
-            <div className="px-2.5 py-1 text-center border-r border-slate-200/50 dark:border-slate-800/50">
-              <span className="text-[9px] text-slate-400 dark:text-slate-500 block">بحرانی/فوری</span>
-              <span className="text-xs sm:text-sm font-black text-rose-500 dark:text-rose-400 font-mono animate-pulse">{urgentCount}</span>
-            </div>
-          </div>
+          {/* Quick Stats Grid Badges (Staggered Animation, Mobile Optimized CSS selector: .grid-stats) */}
+          <motion.div 
+            variants={statsContainerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-2 xs:grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-2.5 bg-slate-100/40 dark:bg-slate-950/20 p-2 rounded-2xl border border-slate-200/50 dark:border-slate-800/40 grid-stats w-full"
+          >
+            {/* Stat Card 1: Total Tasks */}
+            <motion.div 
+              variants={statsItemVariants}
+              className="relative group bg-white/80 dark:bg-slate-900/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/30 dark:border-slate-800/40 text-center transition-all duration-155 hover:border-purple-500/20 hover:bg-white dark:hover:bg-slate-900 shadow-3xs cursor-default hover:shadow-xs"
+            >
+              <span className="text-[9.5px] text-slate-400 dark:text-slate-500 block font-bold">کل کارهای فعال</span>
+              <span className="text-xs sm:text-[13px] font-black text-slate-800 dark:text-white font-mono mt-0.5 block">{totalCount}</span>
+              
+              {/* Tooltip Description */}
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-slate-850 text-white dark:text-slate-100 text-[10px] p-2.5 rounded-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-150 z-50 w-44 shadow-lg text-center leading-relaxed">
+                تعداد کل تسک‌های فعال در ستون‌های بورد دیسپچ برای شیفت جاری.
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900 dark:border-t-slate-850" />
+              </div>
+            </motion.div>
+
+            {/* Stat Card 2: In Progress */}
+            <motion.div 
+              variants={statsItemVariants}
+              className="relative group bg-white/80 dark:bg-slate-900/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/30 dark:border-slate-800/40 text-center transition-all duration-155 hover:border-amber-500/20 hover:bg-white dark:hover:bg-slate-900 shadow-3xs cursor-default hover:shadow-xs"
+            >
+              <span className="text-[9.5px] text-slate-400 dark:text-slate-500 block font-bold">در حال تماس</span>
+              <span className="text-xs sm:text-[13px] font-black text-amber-500 dark:text-amber-400 font-mono mt-0.5 block">{inProgressCount}</span>
+              
+              {/* Tooltip Description */}
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-slate-850 text-white dark:text-slate-100 text-[10px] p-2.5 rounded-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-150 z-50 w-44 shadow-lg text-center leading-relaxed">
+                تعداد تسک‌هایی که در وضعیت «در حال اقدام/تماس مستمر» قرار دارند.
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900 dark:border-t-slate-850" />
+              </div>
+            </motion.div>
+
+            {/* Stat Card 3: Completed */}
+            <motion.div 
+              variants={statsItemVariants}
+              className="relative group bg-white/80 dark:bg-slate-900/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/30 dark:border-slate-800/40 text-center transition-all duration-155 hover:border-emerald-500/20 hover:bg-white dark:hover:bg-slate-900 shadow-3xs cursor-default hover:shadow-xs"
+            >
+              <span className="text-[9.5px] text-slate-400 dark:text-slate-500 block font-bold">پاسخ‌داده شده</span>
+              <span className="text-xs sm:text-[13px] font-black text-emerald-500 dark:text-emerald-400 font-mono mt-0.5 block">{completedCount}</span>
+              
+              {/* Tooltip Description */}
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-slate-850 text-white dark:text-slate-100 text-[10px] p-2.5 rounded-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-150 z-50 w-44 shadow-lg text-center leading-relaxed">
+                کل تسک‌های نهایی شده و موفق آرشیو شده (روند راندمان).
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900 dark:border-t-slate-850" />
+              </div>
+            </motion.div>
+
+            {/* Stat Card 4: Urgent */}
+            <motion.div 
+              variants={statsItemVariants}
+              className="relative group bg-white/80 dark:bg-slate-900/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/30 dark:border-slate-800/40 text-center transition-all duration-155 hover:border-rose-500/20 hover:bg-white dark:hover:bg-slate-900 shadow-3xs cursor-default hover:shadow-xs"
+            >
+              <span className="text-[9.5px] text-slate-400 dark:text-slate-500 block font-bold">بحرانی/فوری</span>
+              <span className="text-xs sm:text-[13px] font-black text-rose-500 dark:text-rose-400 font-mono mt-0.5 block animate-pulse">{urgentCount}</span>
+              
+              {/* Tooltip Description */}
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-slate-850 text-white dark:text-slate-100 text-[10px] p-2.5 rounded-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-150 z-50 w-44 shadow-lg text-center leading-relaxed">
+                تعداد کل مأموریت‌های ثبت شده با اولویت بحرانی و فوری اقدام.
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900 dark:border-t-slate-850" />
+              </div>
+            </motion.div>
+          </motion.div>
 
           {/* User Controls and Theme Switcher widgets */}
           <div className="flex items-center justify-end gap-3.5">
@@ -1414,6 +1577,13 @@ export default function App() {
               onToggleSound={() => setSoundEnabled(!soundEnabled)}
               browserPushEnabled={browserPushEnabled}
               onToggleBrowserPush={handleToggleBrowserPush}
+              urgentSoundType={urgentSoundType}
+              onChangeUrgentSoundType={(type) => {
+                setUrgentSoundType(type);
+                setTimeout(() => {
+                  playNotificationSound('urgent');
+                }, 50);
+              }}
             />
 
             {/* Theme Toggle Button */}

@@ -33,6 +33,8 @@ interface NotificationCenterProps {
   onToggleSound?: () => void;
   browserPushEnabled?: boolean;
   onToggleBrowserPush?: () => void;
+  urgentSoundType?: string;
+  onChangeUrgentSoundType?: (type: string) => void;
 }
 
 export default function NotificationCenter({
@@ -48,6 +50,8 @@ export default function NotificationCenter({
   onToggleSound,
   browserPushEnabled = false,
   onToggleBrowserPush,
+  urgentSoundType = 'double_chord',
+  onChangeUrgentSoundType,
 }: NotificationCenterProps) {
   
   const unreadCount = (notifications || []).filter((n) => !n.read).length;
@@ -161,6 +165,23 @@ export default function NotificationCenter({
                     </button>
                   )}
                 </div>
+              </div>
+
+              {/* Urgent Sound Settings Custom Block */}
+              <div className="p-3 bg-rose-500/5 dark:bg-rose-500/10 border-b border-slate-100 dark:border-slate-800 text-right space-y-1.5 flex flex-col items-stretch">
+                <span className="text-[10px] text-rose-600 dark:text-rose-450 font-black flex items-center gap-1">
+                  🔥 صدای نوتیفیکیشن وظایف فوری (Urgent):
+                </span>
+                <select
+                  value={urgentSoundType}
+                  onChange={(e) => onChangeUrgentSoundType?.(e.target.value)}
+                  className="w-full text-[10px] font-bold p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg outline-none text-slate-800 dark:text-slate-100"
+                >
+                  <option value="double_chord">🔊 آکورد دوتایی (پیش‌فرض)</option>
+                  <option value="laser_sweep">🛸 جاروب لیزری فضایی (مهیج)</option>
+                  <option value="bell_ring">🔔 زنگ کوبنده فلزی (پرصدا)</option>
+                  <option value="melodic_triad">🎵 ملودی صعودی هشدار (آلارم)</option>
+                </select>
               </div>
 
               {/* Notification Items List */}

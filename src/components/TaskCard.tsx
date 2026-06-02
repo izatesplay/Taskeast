@@ -115,6 +115,7 @@ export default function TaskCard({
   return (
     <motion.div
       ref={cardRef}
+      layout
       initial={{ opacity: 0, scale: 0.95, y: 15 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
@@ -205,12 +206,24 @@ export default function TaskCard({
       {/* Additional Interactive Detail Section (Comments / Action Tools) */}
       <div className="mt-3 pt-3 border-t border-slate-150 dark:border-slate-805/60 dark:border-slate-800/60 flex items-center justify-between text-xs" style={{ transform: 'translateZ(12px)' }}>
         
-        {/* Comment indicators */}
+        {/* Comment indicators & Checklist Progress */}
         <div className="flex items-center gap-3 text-slate-400">
           <div className="flex items-center gap-1 text-[11px] font-bold" title="پیام‌های چت تیمی">
             <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
             <span className="font-mono">{task.chatMessages?.length || 0}</span>
           </div>
+
+          {task.checklist && task.checklist.length > 0 && (
+            <div 
+              className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 bg-purple-50/40 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 rounded border border-purple-500/10 cursor-help" 
+              title="پیشرفت اقدامات چک‌لیست"
+            >
+              <Sparkles className="w-3 h-3 text-purple-500 shrink-0" />
+              <span className="font-mono">
+                {task.checklist.filter(ch => ch.completed).length}/{task.checklist.length}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Action Controls */}
